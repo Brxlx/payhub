@@ -1,9 +1,10 @@
 import { Module } from '@nestjs/common';
-import { EnvService } from './env.service';
 import { ConfigModule } from '@nestjs/config';
 
-import { validateEnv } from './env.schema';
 import { CoreEnv } from '@/core/env';
+
+import { validateEnv } from './env.schema';
+import { EnvService } from './env.service';
 
 @Module({
   imports: [

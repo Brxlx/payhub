@@ -1,0 +1,121 @@
+import { AggregateRoot } from '@/core/entities/aggregate-root';
+import { ID } from '@/core/entities/id';
+import { EntityError } from '@/core/errors/entity.error';
+import { Optional } from '@/core/types/optional';
+
+import { OrderPlacedEvent } from './events/order-placed.event';
+import { OrderItem } from './order-item';
+import { Money } from './value-objects/money.vo';
+import { OrderStatus } from './value-objects/order-status.vo';
+
+export interface OrderProps {
+  customerId: ID;
+  status: OrderStatus;
+  items: OrderItem[];
+  createdAt: Date;
+  updatedAt?: Date | null;
+}
+
+export class OrderError extends Error implements EntityError {
+  constructor(message: string) {
+    super(message);
+    this.name = 'OrderError';
+  }
+}
+
+/**
+ * Aggregate Root do contexto de pedidos. É a fronteira de consistência
+ * transacional: toda alteração em `items` ou `status` passa por aqui, nunca
+ * diretamente pelas entidades/VOs internas (ver README, seções 5.1 e 5.3).
+ */
+export class Order extends AggregateRoot<OrderProps> {
+  get customerId() {
+    return this.props.customerId;
+  }
+
+  get status() {
+    return this.props.status;
+  }
+
+  get items(): readonly OrderItem[] {
+    return this.props.items;
+  }
+
+  get createdAt() {
+    return this.props.createdAt;
+  }
+
+  get updatedAt() {
+    return this.props.updatedAt;
+  }
+
+  /** Soma dos subtotais de todos os itens. Sempre derivado, nunca armazenado. */
+  get total(): Money {
+    return this.props.items.reduce((total, item) => total.add(item.subtotal), Money.zero());
+  }
+
+  /**
+   * Adiciona um item ao pedido. Só é permitido enquanto o pedido estiver
+   * em rascunho (`DRAFT`) — um pedido já confirmado é imutável em seus itens.
+   */
+  public addItem(item: OrderItem): void {
+    this.assertIsDraft('add items to');
+
+    this.props.items.push(item);
+    this.touch();
+  }
+
+  /** Remove um item do pedido pelo seu id. Mesma restrição de `addItem`. */
+  public removeItem(itemId: ID): void {
+    this.assertIsDraft('remove items from');
+
+    this.props.items = this.props.items.filter((item) => !item.id.equals(itemId));
+    this.touch();
+  }
+
+  /**
+   * Confirma o pedido: `DRAFT` → `PLACED`. Exige ao menos um item e dispara
+   * `OrderPlacedEvent`, que só é efetivamente publicado após o repositório
+   * persistir o agregado (ver README, seção 5.3 e 8.3 — Transactional Outbox).
+   */
+  public place(): void {
+    if (this.props.items.length === 0) {
+      throw new OrderError('Cannot place an order without items');
+    }
+
+    this.props.status = this.props.status.transitionTo('PLACED');
+    this.touch();
+
+    this.addDomainEvent(new OrderPlacedEvent(this.id, this.props.customerId, this.total));
+  }
+
+  /** Cancela o pedido, seja ele um rascunho ou já confirmado. */
+  public cancel(): void {
+    this.props.status = this.props.status.transitionTo('CANCELLED');
+    this.touch();
+  }
+
+  private assertIsDraft(action: string): void {
+    if (!this.props.status.is('DRAFT')) {
+      throw new OrderError(
+        `Cannot ${action} an order that is not a draft (current status: ${this.props.status.current})`,
+      );
+    }
+  }
+
+  private touch(): void {
+    this.props.updatedAt = new Date();
+  }
+
+  static create(props: Optional<OrderProps, 'createdAt' | 'status' | 'items'>, id?: ID) {
+    return new Order(
+      {
+        ...props,
+        status: props.status ?? OrderStatus.draft(),
+        items: props.items ?? [],
+        createdAt: props.createdAt ?? new Date(),
+      },
+      id,
+    );
+  }
+}
