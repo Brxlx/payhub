@@ -14,8 +14,8 @@ interface MakeOrderItemProps {
 export function makeOrderItemFactory(props: MakeOrderItemProps = {}, id?: ID) {
   return OrderItem.create(
     {
-      orderId: new ID(props.orderId ?? faker.string.uuid()),
-      productId: new ID(props.productId ?? faker.string.uuid()),
+      orderId: new ID(props.orderId),
+      productId: new ID(props.productId),
       quantity: props.quantity ?? faker.number.int({ min: 1, max: 10 }),
       unitPrice: Money.fromCents(props.unitPrice ?? faker.number.int({ min: 10, max: 1000 })),
     },

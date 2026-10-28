@@ -61,6 +61,23 @@ describe('[Order]', () => {
 
       expect(() => order.addItem(item)).toThrow(OrderError);
     });
+
+    it('should be able to compute total as the sum of one item, then add another item and sum', () => {
+      const firstItem = makeOrderItemFactory({ quantity: 1, unitPrice: 500 });
+
+      const knownOrder = makeOrderFactory({
+        customerId: customerId.toString(),
+        items: [firstItem],
+      });
+
+      expect(knownOrder.total).toEqual(Money.fromCents(500));
+
+      const secondItem = makeOrderItemFactory({ quantity: 1, unitPrice: 500 });
+
+      knownOrder.addItem(secondItem);
+
+      expect(knownOrder.total).toEqual(Money.fromCents(1000));
+    });
   });
 
   describe('removeItem', () => {
