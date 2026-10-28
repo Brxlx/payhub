@@ -1,8 +1,8 @@
 import { AggregateRoot } from '@/core/entities/aggregate-root';
 import { ID } from '@/core/entities/id';
-import { EntityError } from '@/core/errors/entity.error';
 import { Optional } from '@/core/types/optional';
 
+import { OrderError } from './errors/order.error';
 import { OrderPlacedEvent } from './events/order-placed.event';
 import { OrderItem } from './order-item';
 import { Money } from './value-objects/money.vo';
@@ -14,13 +14,6 @@ export interface OrderProps {
   items: OrderItem[];
   createdAt: Date;
   updatedAt?: Date | null;
-}
-
-export class OrderError extends Error implements EntityError {
-  constructor(message: string) {
-    super(message);
-    this.name = 'OrderError';
-  }
 }
 
 /**
@@ -65,11 +58,20 @@ export class Order extends AggregateRoot<OrderProps> {
     this.touch();
   }
 
-  /** Remove um item do pedido pelo seu id. Mesma restrição de `addItem`. */
+  /**
+   * Remove um item do pedido pelo seu id. Mesma restrição de `addItem`, mais
+   * uma: nunca pode deixar o pedido sem itens — para isso, cancele o pedido.
+   */
   public removeItem(itemId: ID): void {
     this.assertIsDraft('remove items from');
 
-    this.props.items = this.props.items.filter((item) => !item.id.equals(itemId));
+    const remaining = this.props.items.filter((item) => !item.id.equals(itemId));
+
+    if (remaining.length === 0) {
+      throw new OrderError('Cannot remove the last item of an order — cancel the order instead');
+    }
+
+    this.props.items = remaining;
     this.touch();
   }
 
@@ -107,12 +109,15 @@ export class Order extends AggregateRoot<OrderProps> {
     this.props.updatedAt = new Date();
   }
 
-  static create(props: Optional<OrderProps, 'createdAt' | 'status' | 'items'>, id?: ID) {
+  static create(props: Optional<OrderProps, 'createdAt' | 'status'>, id?: ID) {
+    if (props.items.length === 0) {
+      throw new OrderError('Cannot create an order without at least one item');
+    }
+
     return new Order(
       {
         ...props,
         status: props.status ?? OrderStatus.draft(),
-        items: props.items ?? [],
         createdAt: props.createdAt ?? new Date(),
       },
       id,

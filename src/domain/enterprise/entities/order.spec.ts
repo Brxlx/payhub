@@ -1,12 +1,14 @@
 import { makeOrderFactory } from 'test/factories/make-order';
+import { makeOrderItemFactory } from 'test/factories/make-order-item';
 
 import { ID } from '@/core/entities/id';
 
+import { OrderError } from './errors/order.error';
 import { OrderPlacedEvent } from './events/order-placed.event';
-import { Order, OrderError } from './order';
+import { Order } from './order';
 import { OrderItem } from './order-item';
+import { OrderStatusError } from './value-objects/errors/order-status.error';
 import { Money } from './value-objects/money.vo';
-import { OrderStatusError } from './value-objects/order-status.vo';
 
 describe('[Order]', () => {
   let customerId: ID;
@@ -17,37 +19,44 @@ describe('[Order]', () => {
     order = makeOrderFactory({ customerId: customerId.toString() });
   });
 
-  it('should be created in draft status with no items by default', () => {
+  it('should be created in draft status with the given items', () => {
     expect(order.status.is('DRAFT')).toBeTruthy();
-    expect(order.items).toHaveLength(0);
+    expect(order.items).toHaveLength(1);
     expect(order.createdAt).toBeInstanceOf(Date);
   });
 
-  it('should compute total as zero when there are no items', () => {
-    expect(order.total.equals(Money.zero())).toBeTruthy();
+  it('should not allow creating an order without items', () => {
+    expect(() => Order.create({ customerId, items: [] })).toThrow(OrderError);
   });
 
   describe('addItem', () => {
     let item: OrderItem;
 
     beforeEach(() => {
-      item = OrderItem.create({
-        orderId: order.id,
-        productId: new ID(),
-        quantity: 2,
-        unitPrice: Money.fromCents(1000),
-      });
+      item = makeOrderItemFactory({ orderId: order.id.toString() });
     });
 
     it('should add an item while the order is a draft', () => {
       order.addItem(item);
 
-      expect(order.items).toHaveLength(1);
-      expect(order.total.equals(Money.fromCents(2000))).toBeTruthy();
+      expect(order.items).toHaveLength(2);
+    });
+
+    it('should compute total as the sum of all items subtotals', () => {
+      const firstItem = makeOrderItemFactory({ quantity: 2, unitPrice: 1000 });
+      const secondItem = makeOrderItemFactory({ quantity: 1, unitPrice: 500 });
+
+      const knownOrder = makeOrderFactory({
+        customerId: customerId.toString(),
+        items: [firstItem],
+      });
+
+      knownOrder.addItem(secondItem);
+
+      expect(knownOrder.total.equals(Money.fromCents(2500))).toBeTruthy();
     });
 
     it('should not allow adding items to an order that is not a draft', () => {
-      order.addItem(item);
       order.place();
 
       expect(() => order.addItem(item)).toThrow(OrderError);
@@ -58,19 +67,22 @@ describe('[Order]', () => {
     let item: OrderItem;
 
     beforeEach(() => {
-      item = OrderItem.create({
-        orderId: order.id,
-        productId: new ID(),
-        quantity: 1,
-        unitPrice: Money.fromCents(500),
-      });
+      item = makeOrderItemFactory({ orderId: order.id.toString() });
       order.addItem(item);
     });
 
     it('should remove an item while the order is a draft', () => {
       order.removeItem(item.id);
 
-      expect(order.items).toHaveLength(0);
+      expect(order.items).toHaveLength(1);
+    });
+
+    it('should not allow removing the last remaining item', () => {
+      order.items.forEach((orderItem) => {
+        if (!orderItem.id.equals(item.id)) order.removeItem(orderItem.id);
+      });
+
+      expect(() => order.removeItem(item.id)).toThrow(OrderError);
     });
 
     it('should not allow removing items from an order that is not a draft', () => {
@@ -81,35 +93,13 @@ describe('[Order]', () => {
   });
 
   describe('place', () => {
-    it('should not allow placing an order without items', () => {
-      expect(() => order.place()).toThrow(OrderError);
-    });
-
     it('should transition status from draft to placed', () => {
-      order.addItem(
-        OrderItem.create({
-          orderId: order.id,
-          productId: new ID(),
-          quantity: 1,
-          unitPrice: Money.fromCents(1000),
-        }),
-      );
-
       order.place();
 
       expect(order.status.is('PLACED')).toBeTruthy();
     });
 
     it('should emit an OrderPlacedEvent', () => {
-      order.addItem(
-        OrderItem.create({
-          orderId: order.id,
-          productId: new ID(),
-          quantity: 1,
-          unitPrice: Money.fromCents(1000),
-        }),
-      );
-
       order.place();
 
       expect(order.domainEvents).toHaveLength(1);
@@ -125,14 +115,6 @@ describe('[Order]', () => {
     });
 
     it('should transition a placed order to cancelled', () => {
-      order.addItem(
-        OrderItem.create({
-          orderId: order.id,
-          productId: new ID(),
-          quantity: 1,
-          unitPrice: Money.fromCents(1000),
-        }),
-      );
       order.place();
 
       order.cancel();

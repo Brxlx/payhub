@@ -1,4 +1,5 @@
-import { OrderStatus, OrderStatusError } from './order-status.vo';
+import { OrderStatusError } from './errors/order-status.error';
+import { OrderStatus } from './order-status.vo';
 
 describe('[OrderStatus]', () => {
   let status: OrderStatus;

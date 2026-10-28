@@ -1,4 +1,5 @@
-import { Money, MoneyError } from './money.vo';
+import { MoneyError } from './errors/money.error';
+import { Money } from './money.vo';
 
 describe('[Money]', () => {
   it('should create a money value from cents', () => {

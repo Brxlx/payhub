@@ -1,7 +1,7 @@
 import { BaseEntity } from '@/core/entities/base-entity';
 import { ID } from '@/core/entities/id';
-import { EntityError } from '@/core/errors/entity.error';
 
+import { OrderItemError } from './errors/order-item.error';
 import { Money } from './value-objects/money.vo';
 
 export interface OrderItemProps {
@@ -9,13 +9,6 @@ export interface OrderItemProps {
   productId: ID;
   quantity: number;
   unitPrice: Money;
-}
-
-export class OrderItemError extends Error implements EntityError {
-  constructor(message: string) {
-    super(message);
-    this.name = 'OrderItemError';
-  }
 }
 
 /**

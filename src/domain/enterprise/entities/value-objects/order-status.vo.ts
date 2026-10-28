@@ -1,24 +1,15 @@
-import { EntityError } from '@/core/errors/entity.error';
+import { OrderStatusError } from './errors/order-status.error';
 
 export type OrderStatusValue = 'DRAFT' | 'PLACED' | 'CANCELLED';
 
 /**
  * Única fonte da verdade sobre quais transições de status são válidas.
- * Mantida aqui — e não espalhada em `if`s pela entidade `Order` — para que
- * a regra de transição de estado fique centralizada e fácil de auditar.
  */
 const ORDER_STATUS_TRANSITIONS: Record<OrderStatusValue, OrderStatusValue[]> = {
   DRAFT: ['PLACED', 'CANCELLED'],
   PLACED: ['CANCELLED'],
   CANCELLED: [],
 };
-
-export class OrderStatusError extends Error implements EntityError {
-  constructor(message: string) {
-    super(message);
-    this.name = 'OrderStatusError';
-  }
-}
 
 /**
  * Value Object que encapsula o ciclo de vida do status de um pedido.

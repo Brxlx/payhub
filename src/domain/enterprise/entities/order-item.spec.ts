@@ -2,7 +2,8 @@ import { makeOrderItemFactory } from 'test/factories/make-order-item';
 
 import { ID } from '@/core/entities/id';
 
-import { OrderItem, OrderItemError } from './order-item';
+import { OrderItemError } from './errors/order-item.error';
+import { OrderItem } from './order-item';
 import { Money } from './value-objects/money.vo';
 
 describe('[OrderItem]', () => {

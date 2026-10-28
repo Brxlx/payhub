@@ -1,13 +1,6 @@
-import { EntityError } from '@/core/errors/entity.error';
+import { MoneyError } from './errors/money.error';
 
 export type Currency = 'BRL' | 'USD';
-
-export class MoneyError extends Error implements EntityError {
-  constructor(message: string) {
-    super(message);
-    this.name = 'MoneyError';
-  }
-}
 
 /**
  * Representa um valor monetário imutável, armazenado internamente em
