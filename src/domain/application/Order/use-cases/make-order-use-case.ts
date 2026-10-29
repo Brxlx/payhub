@@ -95,6 +95,7 @@ export class MakeOrderUseCase {
 
       const order = Order.create({ customerId, items: orderItems }, orderId);
 
+      // Sets the `Order` as placed, so that it can be persisted in the same transaction.
       order.place();
 
       return right(order);

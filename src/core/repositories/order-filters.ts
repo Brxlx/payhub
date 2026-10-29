@@ -5,7 +5,7 @@
  * `find-product.schema.ts`) — evita que tipo e validação fiquem fora de
  * sincronia conforme novos campos forem adicionados.
  */
-export const ORDER_FILTER_FIELDS = ['createdAt', 'updatedAt'] as const;
+export const ORDER_FILTER_FIELDS = ['customerId', 'items', 'status', 'createdAt', 'updatedAt'] as const;
 
 export type OrderFilterField = (typeof ORDER_FILTER_FIELDS)[number];
 

@@ -145,4 +145,35 @@ describe('[Order]', () => {
       expect(() => order.cancel()).toThrow(OrderStatusError);
     });
   });
+
+  describe('delete', () => {
+    it('should soft delete a draft order, setting deletedAt without touching the status', () => {
+      order.delete();
+
+      expect(order.isDeleted).toBeTruthy();
+      expect(order.deletedAt).toBeInstanceOf(Date);
+      expect(order.status.is('DRAFT')).toBeTruthy();
+    });
+
+    it('should soft delete a cancelled order', () => {
+      order.cancel();
+
+      order.delete();
+
+      expect(order.isDeleted).toBeTruthy();
+    });
+
+    it('should not allow deleting a placed order', () => {
+      order.place();
+
+      expect(() => order.delete()).toThrow(OrderError);
+      expect(order.isDeleted).toBeFalsy();
+    });
+
+    it('should not allow deleting an order that is already deleted', () => {
+      order.delete();
+
+      expect(() => order.delete()).toThrow(OrderError);
+    });
+  });
 });

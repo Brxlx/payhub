@@ -14,6 +14,7 @@ export interface OrderProps {
   items: OrderItem[];
   createdAt: Date;
   updatedAt?: Date | null;
+  deletedAt?: Date | null;
 }
 
 /**
@@ -40,6 +41,15 @@ export class Order extends AggregateRoot<OrderProps> {
 
   get updatedAt() {
     return this.props.updatedAt;
+  }
+
+  get deletedAt() {
+    return this.props.deletedAt;
+  }
+
+  /** `true` quando o pedido já passou por soft delete (ver `delete()`). */
+  get isDeleted(): boolean {
+    return this.props.deletedAt != null;
   }
 
   /** Soma dos subtotais de todos os itens. Sempre derivado, nunca armazenado. */
@@ -94,6 +104,30 @@ export class Order extends AggregateRoot<OrderProps> {
   /** Cancela o pedido, seja ele um rascunho ou já confirmado. */
   public cancel(): void {
     this.props.status = this.props.status.transitionTo('CANCELLED');
+    this.touch();
+  }
+
+  /**
+   * Soft delete: o pedido nunca é fisicamente removido (ver README, seção
+   * 6.2 — coluna `deleted_at`). Só pode ser aplicado a pedidos que ainda não
+   * produziram efeitos colaterais confirmados: `DRAFT` (nunca confirmado) ou
+   * `CANCELLED` (já terminal). Um pedido `PLACED` precisa ser cancelado
+   * antes. A remoção definitiva de pedidos já deletados há muito tempo é
+   * responsabilidade de uma rotina de purge futura, não deste método.
+   */
+  public delete(): void {
+    if (this.isDeleted) {
+      throw new OrderError('Order is already deleted');
+    }
+
+    if (!this.props.status.is('DRAFT') && !this.props.status.is('CANCELLED')) {
+      throw new OrderError(
+        // eslint-disable-next-line max-len
+        `Cannot delete an order that is not a draft or cancelled (current status: ${this.props.status.current})`,
+      );
+    }
+
+    this.props.deletedAt = new Date();
     this.touch();
   }
 

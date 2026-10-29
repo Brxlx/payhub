@@ -294,7 +294,7 @@ O domínio define a interface; `infrastructure/drizzle-order.repository.ts` a im
 
 ```ts
 // modules/orders/infrastructure/order.schema.ts
-import { pgTable, uuid, timestamp, integer, pgEnum, varchar } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, timestamp, integer, pgEnum, varchar, jsonb } from 'drizzle-orm/pg-core';
 
 export const orderStatusEnum = pgEnum('order_status', ['DRAFT', 'PLACED', 'CANCELLED']);
 
@@ -306,6 +306,12 @@ export const orders = pgTable('orders', {
   currency: varchar('currency', { length: 3 }).notNull().default('BRL'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  // Soft delete: pedidos nunca são removidos fisicamente (ver o caso de
+  // uso `DeleteOrderUseCase` — só DRAFT/CANCELLED podem ser deletados).
+  // `null` = ativo; preenchido = deletado. Uma rotina de purge futura
+  // remove definitivamente linhas com `deletedAt` há mais de 30 dias (ver
+  // Roadmap, seção 15).
+  deletedAt: timestamp('deleted_at', { withTimezone: true }),
 });
 
 export const orderItems = pgTable('order_items', {
@@ -314,6 +320,20 @@ export const orderItems = pgTable('order_items', {
   productId: uuid('product_id').notNull(),
   quantity: integer('quantity').notNull(),
   unitPriceCents: integer('unit_price_cents').notNull(),
+});
+
+// Suporte ao padrão de Transactional Outbox (seção 8.3): nenhuma mensagem é
+// publicada no RabbitMQ sem antes passar por aqui, na mesma transação do
+// agregado.
+export const outboxEvents = pgTable('outbox_events', {
+  id: uuid('id').primaryKey(),
+  aggregateType: varchar('aggregate_type', { length: 100 }).notNull(),
+  eventType: varchar('event_type', { length: 100 }).notNull(),
+  payload: jsonb('payload').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  // Preenchido pelo worker/polling (seção 8.3) assim que a mensagem é
+  // publicada com sucesso no RabbitMQ. `null` = ainda pendente de envio.
+  processedAt: timestamp('processed_at', { withTimezone: true }),
 });
 ```
 
@@ -727,6 +747,7 @@ export class OrdersController {
 - [ ] Avaliar **Event Sourcing** apenas se o histórico de mudanças do agregado virar requisito de negócio (não antecipar sem necessidade real).
 - [ ] Multi-tenancy, se aplicável, via schema-per-tenant ou coluna `tenant_id` + RLS do Postgres.
 - [ ] Rate limiting (`@nestjs/throttler`) e API versioning antes de expor publicamente.
+- [ ] Rotina periódica (worker ou job agendado) que faz o purge definitivo de pedidos com soft delete (`deletedAt`) há mais de 30 dias — hoje `DeleteOrderUseCase` só marca `deletedAt`, nunca remove a linha de fato (ver seção 6.2).
 
 ---
 
