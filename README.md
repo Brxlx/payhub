@@ -738,6 +738,21 @@ export class OrdersController {
 }
 ```
 
+### 14.1 Por que não há `PUT`/`PATCH /orders/:id` genérico
+
+O módulo `Orders` **não expõe uma rota de atualização genérica**. Toda mutação do agregado é um comando explícito, cada um com sua própria invariante de domínio (seção 5.3) — não existe (nem deveria existir) um `order.update(partialData)` que aceite um body livre e decida por fora quais campos podem mudar em qual status:
+
+| Rota | Use case / regra |
+|---|---|
+| `POST /orders` | `MakeOrderUseCase` — cria e já confirma o pedido (`place()`) |
+| `POST\|PATCH /orders/:id/items` | `addItem()` — só em `DRAFT` |
+| `DELETE /orders/:id/items/:itemId` | `removeItem()` — só em `DRAFT` |
+| `POST /orders/:id/place` | `place()` — `DRAFT` → `PLACED` |
+| `POST /orders/:id/cancel` | `cancel()` — `DRAFT`/`PLACED` → `CANCELLED` |
+| `DELETE /orders/:id` | `delete()` — soft delete, só `DRAFT`/`CANCELLED` (ver seção 6.2) |
+
+Um `PUT`/`PATCH /orders/:id` genérico duplicaria (ou, pior, contornaria) as transições já garantidas por `OrderStatus.canTransitionTo` e pelos guards do agregado (`assertIsDraft`, etc.), além de não mapear para nenhum comando real da linguagem ubíqua do domínio — e conflitaria diretamente com a imutabilidade do pedido após `PLACED`. O método `OrdersRepository.update()` existe apenas como **detalhe de persistência**, usado internamente pelos handlers depois que o agregado já validou a transição; não é — nem deve virar — um verbo HTTP exposto 1:1.
+
 ---
 
 ## 15. Roadmap de evolução

@@ -50,7 +50,19 @@ export class OrderItem extends BaseEntity<OrderItemProps> {
     }
   }
 
+  /**
+   * Garante que `productId` é um `ID` válido (cuid2). Diferente de
+   * `quantity`, não há como alterar o `productId` de um item já criado —
+   * por isso essa checagem só acontece em `create`, nunca em um setter.
+   */
+  private static assertValidProductId(productId: ID): void {
+    if (!productId.isValid()) {
+      throw new OrderItemError('Invalid productId');
+    }
+  }
+
   static create(props: OrderItemProps, id?: ID) {
+    OrderItem.assertValidProductId(props.productId);
     OrderItem.assertValidQuantity(props.quantity);
 
     return new OrderItem(props, id);

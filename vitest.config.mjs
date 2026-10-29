@@ -5,6 +5,7 @@ export default defineConfig({
   test: {
     globals: true,
     root: './',
+    fsModuleCache: true,
   },
   resolve: {
     tsconfigPaths: true,

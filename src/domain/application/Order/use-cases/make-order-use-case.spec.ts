@@ -81,6 +81,16 @@ describe('[MakeOrderUseCase]', () => {
     expect(inMemoryOrdersRepository.items.size).toBe(0);
   });
 
+  it('should not create an order with an item that has an invalid productId', async () => {
+    const result = await sut.execute({
+      customerId: new ID().toValue(),
+      items: [{ productId: 'not-a-valid-id', quantity: 1, unitPriceInCents: 1000 }],
+    });
+
+    expect(result.isLeft()).toBeTruthy();
+    expect(inMemoryOrdersRepository.items.size).toBe(0);
+  });
+
   it('should dispatch an OrderPlacedEvent after persisting the order', async () => {
     const handler = vi.fn();
     DomainEvents.register(handler, OrderPlacedEvent.name);

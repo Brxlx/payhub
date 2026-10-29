@@ -36,6 +36,17 @@ describe('[OrderItem]', () => {
     ).toThrow(OrderItemError);
   });
 
+  it('should not allow creating an item with an invalid productId', () => {
+    expect(() =>
+      OrderItem.create({
+        orderId,
+        productId: new ID('not-a-valid-id'),
+        quantity: 1,
+        unitPrice: Money.fromCents(500),
+      }),
+    ).toThrow(OrderItemError);
+  });
+
   it('should not allow creating an item with a non-integer quantity', () => {
     expect(() =>
       OrderItem.create({
