@@ -757,6 +757,14 @@ Um `PUT`/`PATCH /orders/:id` genérico duplicaria (ou, pior, contornaria) as tra
 
 ## 15. Roadmap de evolução
 
+- [ ] Expor edição de um pedido ainda em rascunho (`DRAFT`) via use cases
+      dedicados (`AddOrderItemUseCase`, `RemoveOrderItemUseCase`, um use
+      case para `Order.changeItemQuantity`). Os métodos `addItem`,
+      `removeItem` e `changeItemQuantity` já existem no agregado `Order` e
+      são testados isoladamente, mas hoje nenhum use case os chama —
+      `MakeOrderUseCase` monta os itens direto em `Order.create` e sempre
+      confirma (`place()`) na mesma operação, então nenhum `DRAFT` é
+      persistido pela camada de aplicação atualmente.
 - [ ] Migrar paginação offset → cursor quando a tabela `orders` passar de ~500k linhas.
 - [ ] Introduzir **CQRS** mais formal (`@nestjs/cqrs`) se `queries` de leitura precisarem de modelos de projeção próprios (read models desnormalizados). Plano concreto já esboçado: um `OrderSummary` (DTO plano, sem as invariantes do agregado `Order`) com seu próprio `OrderSummariesRepository`/`DrizzleOrderSummariesRepository` e um `ListOrderSummariesUseCase` paralelo ao `FindManyOrdersUseCase` — é ali, não no `OrdersRepository` do agregado, que `OrderFilters` (seção 6, `core/repositories/order-filters.ts`) finalmente passaria a reduzir colunas de verdade no `SELECT` (e pular o `JOIN`/subquery com `order_items` quando `items` não for pedido). `OrdersRepository.findManyWithFilters` continua existindo só para quando o agregado completo é necessário (ex.: carregar para chamar `order.cancel()`).
 - [ ] Avaliar **Event Sourcing** apenas se o histórico de mudanças do agregado virar requisito de negócio (não antecipar sem necessidade real).

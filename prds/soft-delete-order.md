@@ -70,6 +70,14 @@ futura (pedidos soft-deletados há mais de 30 dias), não deste use case.
 - `src/domain/application/Order/repositories/orders.repository.ts`
   (comentários explicando `update` vs `delete`)
 
+## Dependência resolvida
+
+- [x] Existe agora um caminho real até `CANCELLED`/`DRAFT` persistido:
+      `CancelOrderUseCase` (ver `prds/cancel-order.md`). Antes dele, nenhum
+      pedido criado via `MakeOrderUseCase` (que sempre nasce `PLACED`)
+      conseguia alcançar um estado deletável — a regra deste use case era
+      inalcançável na prática.
+
 ## Em aberto
 
 - [ ] Endpoint HTTP `DELETE /orders/:id`.

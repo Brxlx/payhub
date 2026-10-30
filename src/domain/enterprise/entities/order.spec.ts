@@ -4,6 +4,7 @@ import { makeOrderItemFactory } from 'test/factories/make-order-item';
 import { ID } from '@/core/entities/id';
 
 import { OrderError } from './errors/order.error';
+import { OrderCancelledEvent } from './events/order-cancelled.event';
 import { OrderPlacedEvent } from './events/order-placed.event';
 import { Order } from './order';
 import { OrderItem } from './order-item';
@@ -109,6 +110,33 @@ describe('[Order]', () => {
     });
   });
 
+  describe('changeItemQuantity', () => {
+    let item: OrderItem;
+
+    beforeEach(() => {
+      item = makeOrderItemFactory({ orderId: order.id.toString() });
+      order.addItem(item);
+    });
+
+    it('should change the quantity of an existing item while the order is a draft', () => {
+      order.changeItemQuantity(item.id, 7);
+
+      expect(item.quantity).toBe(7);
+    });
+
+    it('should not allow changing item quantity in an order that is not a draft', () => {
+      order.place();
+
+      expect(() => order.changeItemQuantity(item.id, 7)).toThrow(OrderError);
+    });
+
+    it('should throw when the item does not belong to the order', () => {
+      const otherItemId = new ID();
+
+      expect(() => order.changeItemQuantity(otherItemId, 7)).toThrow(OrderError);
+    });
+  });
+
   describe('place', () => {
     it('should transition status from draft to placed', () => {
       order.place();
@@ -143,6 +171,25 @@ describe('[Order]', () => {
       order.cancel();
 
       expect(() => order.cancel()).toThrow(OrderStatusError);
+    });
+
+    it('should emit an OrderCancelledEvent with cancelledFrom=DRAFT when cancelling a draft order', () => {
+      order.cancel();
+
+      expect(order.domainEvents).toHaveLength(1);
+      expect(order.domainEvents[0]).toBeInstanceOf(OrderCancelledEvent);
+      expect((order.domainEvents[0] as OrderCancelledEvent).cancelledFrom).toBe('DRAFT');
+    });
+
+    it('should emit an OrderCancelledEvent with cancelledFrom=PLACED when cancelling a placed order', () => {
+      order.place();
+      order.clearEvents();
+
+      order.cancel();
+
+      expect(order.domainEvents).toHaveLength(1);
+      expect(order.domainEvents[0]).toBeInstanceOf(OrderCancelledEvent);
+      expect((order.domainEvents[0] as OrderCancelledEvent).cancelledFrom).toBe('PLACED');
     });
   });
 

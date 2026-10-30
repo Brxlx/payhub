@@ -3,6 +3,7 @@ import { ID } from '@/core/entities/id';
 import { Optional } from '@/core/types/optional';
 
 import { OrderError } from './errors/order.error';
+import { OrderCancelledEvent } from './events/order-cancelled.event';
 import { OrderPlacedEvent } from './events/order-placed.event';
 import { OrderItem } from './order-item';
 import { Money } from './value-objects/money.vo';
@@ -31,6 +32,15 @@ export class Order extends AggregateRoot<OrderProps> {
     return this.props.status;
   }
 
+  /**
+   * Lista de itens do pedido. O array em si é `readonly` (não dá pra
+   * `push`/`splice` por fora), mas os elementos continuam sendo instâncias
+   * mutáveis de `OrderItem` — **nunca chame métodos de mutação neles
+   * diretamente** (ex.: `order.items[0].changeQuantity(...)`), isso
+   * contornaria as invariantes do agregado (`assertIsDraft`). Use sempre
+   * os métodos do próprio `Order` (`addItem`, `removeItem`,
+   * `changeItemQuantity`).
+   */
   get items(): readonly OrderItem[] {
     return this.props.items;
   }
@@ -60,6 +70,13 @@ export class Order extends AggregateRoot<OrderProps> {
   /**
    * Adiciona um item ao pedido. Só é permitido enquanto o pedido estiver
    * em rascunho (`DRAFT`) — um pedido já confirmado é imutável em seus itens.
+   *
+   * NOTA: hoje nenhum use case chama este método — `MakeOrderUseCase`
+   * monta os itens diretamente via `Order.create`, e sempre confirma
+   * (`place()`) o pedido na mesma operação, então nenhum `DRAFT` chega a
+   * ser persistido pela camada de aplicação hoje. Mantido como capacidade
+   * do domínio para um futuro fluxo de edição de pedido ainda em
+   * rascunho (ver README, seção 15).
    */
   public addItem(item: OrderItem): void {
     this.assertIsDraft('add items to');
@@ -71,6 +88,9 @@ export class Order extends AggregateRoot<OrderProps> {
   /**
    * Remove um item do pedido pelo seu id. Mesma restrição de `addItem`, mais
    * uma: nunca pode deixar o pedido sem itens — para isso, cancele o pedido.
+   *
+   * NOTA: assim como `addItem`, hoje nenhum use case chama este método —
+   * mesma razão (ver comentário em `addItem`).
    */
   public removeItem(itemId: ID): void {
     this.assertIsDraft('remove items from');
@@ -86,12 +106,38 @@ export class Order extends AggregateRoot<OrderProps> {
   }
 
   /**
+   * Altera a quantidade de um item existente, respeitando a mesma restrição
+   * de `addItem`/`removeItem`: só é permitido enquanto o pedido ainda é
+   * `DRAFT`. É o único caminho correto para chamar
+   * `OrderItem.changeQuantity` — ver aviso no getter `items`.
+   */
+  public changeItemQuantity(itemId: ID, quantity: number): void {
+    this.assertIsDraft('change item quantities in');
+
+    const item = this.props.items.find((orderItem) => orderItem.id.equals(itemId));
+
+    if (!item) {
+      throw new OrderError('Item not found in this order');
+    }
+
+    item.changeQuantity(quantity);
+    this.touch();
+  }
+
+  /**
    * Confirma o pedido: `DRAFT` → `PLACED`. Exige ao menos um item e dispara
    * `OrderPlacedEvent`, que só é efetivamente publicado após o repositório
    * persistir o agregado (ver README, seção 5.3 e 8.3 — Transactional Outbox).
    */
   public place(): void {
     if (this.props.items.length === 0) {
+      // Defesa em profundidade: hoje este caminho é inalcançável na
+      // prática — `Order.create` já exige itens não-vazios na criação, e
+      // `removeItem` nunca deixa a lista vazia (lança erro antes de
+      // permitir remover o último item). Mantido mesmo assim: se essa
+      // invariante de `create`/`removeItem` mudar no futuro, `place()`
+      // continua protegido sem precisar lembrar de adicionar a checagem
+      // de volta aqui.
       throw new OrderError('Cannot place an order without items');
     }
 
@@ -101,10 +147,19 @@ export class Order extends AggregateRoot<OrderProps> {
     this.addDomainEvent(new OrderPlacedEvent(this.id, this.props.customerId, this.total));
   }
 
-  /** Cancela o pedido, seja ele um rascunho ou já confirmado. */
+  /**
+   * Cancela o pedido, seja ele um rascunho ou já confirmado, e dispara
+   * `OrderCancelledEvent` (ver README, seção 8.1). Capturar o status
+   * anterior antes da transição é o que permite ao evento informar
+   * `cancelledFrom`.
+   */
   public cancel(): void {
+    const cancelledFrom = this.props.status.current;
+
     this.props.status = this.props.status.transitionTo('CANCELLED');
     this.touch();
+
+    this.addDomainEvent(new OrderCancelledEvent(this.id, this.props.customerId, cancelledFrom));
   }
 
   /**

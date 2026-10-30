@@ -38,6 +38,14 @@ export class OrderItem extends BaseEntity<OrderItemProps> {
     return this.props.unitPrice.multiply(this.props.quantity);
   }
 
+  /**
+   * Altera a quantidade do item. **Nunca deve ser chamado diretamente** por
+   * código fora do agregado `Order` — isso contornaria o guard
+   * `assertIsDraft` que protege a invariante "itens só mudam enquanto o
+   * pedido é DRAFT". TypeScript não tem como impedir essa chamada em tempo
+   * de compilação aqui (não há acesso "package-private" entre classes
+   * irmãs); use sempre `Order.changeItemQuantity(itemId, quantity)`.
+   */
   public changeQuantity(quantity: number): void {
     OrderItem.assertValidQuantity(quantity);
 
