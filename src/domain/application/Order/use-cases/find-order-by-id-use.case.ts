@@ -1,3 +1,4 @@
+import { ID } from '@/core/entities/id';
 import { Either, left, right } from '@/core/types/either';
 import { OrderError } from '@/domain/enterprise/entities/errors/order.error';
 import { Order } from '@/domain/enterprise/entities/order';
@@ -14,8 +15,12 @@ export class FindOrderByIdUseCase {
   constructor(private readonly ordersRepository: OrdersRepository) {}
 
   async execute({ id }: FindOrderByIdUseCaseRequest): Promise<FindOrderByIdUseCaseResponse> {
-    if (!id) {
-      return left(new OrderError('Order ID is required'));
+    if (!id) return left(new OrderError('Order ID is required'));
+
+    const idVo = new ID(id);
+
+    if (!idVo.isValid()) {
+      return left(new OrderError('Invalid ID'));
     }
 
     const order = await this.ordersRepository.findById(id);

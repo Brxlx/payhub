@@ -41,7 +41,7 @@ describe('[FindOrderByIdUseCase]', () => {
     expect(result.isLeft()).toBeTruthy();
     assert(result.isLeft());
     expect(result.value).toBeInstanceOf(OrderError);
-    expect(result.value.message).toEqual('Order not found');
+    expect(result.value.message).toEqual('Invalid ID');
   });
 
   it('should return an error when id is an empty string', async () => {
