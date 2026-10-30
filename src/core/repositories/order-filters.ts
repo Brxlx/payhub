@@ -4,6 +4,13 @@
  * validar o parâmetro `fields` da query string na camada HTTP (ver
  * `find-product.schema.ts`) — evita que tipo e validação fiquem fora de
  * sincronia conforme novos campos forem adicionados.
+ *
+ * ATUALMENTE NÃO USADO por `OrdersRepository`/`FindManyOrdersUseCase`: esse
+ * port devolve o agregado `Order` completo, e um agregado parcial violaria
+ * as próprias invariantes do domínio (ex.: `Order.total` depende de
+ * `items`). Projeção de campos só faz sentido num read model dedicado (DTO
+ * plano, fora do agregado) — ver plano concreto no README, seção 15
+ * (roadmap, item de CQRS).
  */
 export const ORDER_FILTER_FIELDS = ['customerId', 'items', 'status', 'createdAt', 'updatedAt'] as const;
 

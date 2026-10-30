@@ -1,6 +1,9 @@
 /* eslint-disable @typescript-eslint/require-await */
-import { OrderFilters } from '@/core/repositories/order-filters';
-import { OrdersRepository } from '@/domain/application/Order/repositories/orders.repository';
+import {
+  FindManyOrdersParams,
+  FindManyOrdersResult,
+  OrdersRepository,
+} from '@/domain/application/Order/repositories/orders.repository';
 import { DomainEvents } from '@/domain/application/shared/events/domain-events';
 import { Order } from '@/domain/enterprise/entities/order';
 
@@ -26,14 +29,15 @@ export class InMemoryOrdersRepository implements OrdersRepository {
     return this.items.get(id) ?? null;
   }
 
-  async findManyWithFilters(filters?: OrderFilters): Promise<Order[]> {
-    // `OrderFilters` hoje descreve quais campos projetar (uso típico de
-    // query SQL), não critérios de busca — como aqui trabalhamos com os
-    // agregados completos em memória, não há o que reduzir. Mantido apenas
-    // para respeitar a assinatura do port.
-    void filters;
+  async findManyWithFilters({ pagination }: FindManyOrdersParams): Promise<FindManyOrdersResult> {
+    const all = Array.from(this.items.values());
+    const total = all.length;
 
-    return Array.from(this.items.values());
+    const start = (pagination.page - 1) * pagination.itemsPerPage;
+    const orders = all.slice(start, start + pagination.itemsPerPage);
+    const hasMore = start + orders.length < total;
+
+    return { orders, total, hasMore };
   }
 
   async update(order: Order): Promise<void> {
