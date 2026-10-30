@@ -2,6 +2,7 @@ import { AggregateRoot } from '@/core/entities/aggregate-root';
 import { ID } from '@/core/entities/id';
 import { Optional } from '@/core/types/optional';
 
+import { ORDER_CANCELLATION_WINDOW_MS } from '../../../core/consts/order.consts';
 import { OrderError } from './errors/order.error';
 import { OrderCancelledEvent } from './events/order-cancelled.event';
 import { OrderPlacedEvent } from './events/order-placed.event';
@@ -16,6 +17,7 @@ export interface OrderProps {
   createdAt: Date;
   updatedAt?: Date | null;
   deletedAt?: Date | null;
+  placedAt?: Date | null;
 }
 
 /**
@@ -55,6 +57,12 @@ export class Order extends AggregateRoot<OrderProps> {
 
   get deletedAt() {
     return this.props.deletedAt;
+  }
+
+  /** Momento em que o pedido foi confirmado (`place()`). `null`/`undefined`
+   * enquanto ainda é `DRAFT`. */
+  get placedAt() {
+    return this.props.placedAt;
   }
 
   /** `true` quando o pedido já passou por soft delete (ver `delete()`). */
@@ -142,6 +150,7 @@ export class Order extends AggregateRoot<OrderProps> {
     }
 
     this.props.status = this.props.status.transitionTo('PLACED');
+    this.props.placedAt = new Date();
     this.touch();
 
     this.addDomainEvent(new OrderPlacedEvent(this.id, this.props.customerId, this.total));
@@ -152,9 +161,17 @@ export class Order extends AggregateRoot<OrderProps> {
    * `OrderCancelledEvent` (ver README, seção 8.1). Capturar o status
    * anterior antes da transição é o que permite ao evento informar
    * `cancelledFrom`.
+   *
+   * Um pedido `PLACED` só pode ser cancelado dentro de
+   * `ORDER_CANCELLATION_WINDOW_MS` a partir de `placedAt` — regra de
+   * negócio, não se aplica a `DRAFT` (nunca confirmado, sem janela).
    */
   public cancel(): void {
     const cancelledFrom = this.props.status.current;
+
+    if (cancelledFrom === 'PLACED') {
+      this.assertWithinCancellationWindow();
+    }
 
     this.props.status = this.props.status.transitionTo('CANCELLED');
     this.touch();
@@ -184,6 +201,20 @@ export class Order extends AggregateRoot<OrderProps> {
 
     this.props.deletedAt = new Date();
     this.touch();
+  }
+
+  private assertWithinCancellationWindow(): void {
+    // `placedAt` sempre existe para um pedido `PLACED` (setado em `place()`);
+    // o guard é só para satisfazer o tipo `Date | null | undefined`.
+    if (!this.props.placedAt) return;
+
+    const elapsedMs = Date.now() - this.props.placedAt.getTime();
+
+    if (elapsedMs > ORDER_CANCELLATION_WINDOW_MS) {
+      throw new OrderError(
+        `Cannot cancel an order placed more than ${ORDER_CANCELLATION_WINDOW_MS / (60 * 60 * 1000)}h ago`,
+      );
+    }
   }
 
   private assertIsDraft(action: string): void {

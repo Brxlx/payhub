@@ -17,6 +17,7 @@ inalcançável na prática para qualquer pedido criado via API.
 
 - [x] Cancelar um pedido `DRAFT` ou `PLACED` (transição para `CANCELLED`
       via `Order.cancel()`).
+- [x] Janela de cancelamento de 1h para pedidos `PLACED` (ver nota abaixo).
 - [x] Disparar `OrderCancelledEvent` ao cancelar (ver nota abaixo).
 - [ ] Endpoint HTTP (`POST /orders/:id/cancel`, README seção 14.1).
 - [ ] Publicar `OrderCancelledEvent` no RabbitMQ (routing key
@@ -40,9 +41,36 @@ inalcançável na prática para qualquer pedido criado via API.
 - [x] Pedido não encontrado → `OrderNotFoundError`.
 - [x] Pedido `DRAFT` → cancelamento permitido.
 - [x] Pedido `PLACED` → cancelamento permitido.
-- [x] Pedido já `CANCELLED` → `OrderCannotBeCancelledError` (única
-      transição inválida possível, já que `CANCELLED` não tem saída —
-      ver `ORDER_STATUS_TRANSITIONS`).
+- [x] Pedido já `CANCELLED` → `OrderCannotBeCancelledError` (via
+      `OrderStatusError`, já que `CANCELLED` não tem saída — ver
+      `ORDER_STATUS_TRANSITIONS`).
+- [x] Pedido `PLACED` há mais de 1h → `OrderCannotBeCancelledError` (via
+      `OrderError`, lançado por `Order.cancel()`/
+      `assertWithinCancellationWindow` — regra de negócio, não se aplica
+      a `DRAFT`, que não tem `placedAt`).
+
+## Janela de cancelamento (1h)
+
+Pedidos `PLACED` só podem ser cancelados dentro de `ORDER_CANCELLATION_WINDOW_MS`
+(1h) a partir de `placedAt`. Motivo de negócio: depois desse prazo o
+pedido já pode estar em processamento (cobrança/envio), então um
+cancelamento simples deixa de ser seguro — precisaria virar um fluxo de
+reembolso/devolução, que ainda não existe neste domínio (sem módulo de
+pagamentos/fulfillment). Não se aplica a `DRAFT` (nunca confirmado, sem
+`placedAt`, sem limite de tempo).
+
+Considerado e descartado, por enquanto: bloquear cancelamento de pedidos
+que já dispararam notificação. Notificar o cliente não deveria travar o
+cancelamento (é só um aviso; cancelar depois só dispara outra
+notificação) — o que de fato importa é estado de pagamento/envio, que
+pertence a outro bounded context, ainda inexistente.
+
+- [x] `placedAt?: Date | null` em `OrderProps`, setado em `place()`.
+- [x] `Order.cancel()` valida a janela apenas quando `cancelledFrom ===
+      'PLACED'`.
+- [ ] Módulo de Pagamentos/Fulfillment, que eventualmente decidiria se um
+      cancelamento fora da janela ainda é possível via fluxo de
+      reembolso/devolução (fora do escopo deste use case).
 
 ## `OrderCancelledEvent`
 

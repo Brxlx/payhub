@@ -1,5 +1,6 @@
 import { ID } from '@/core/entities/id';
 import { Either, left, right } from '@/core/types/either';
+import { OrderError } from '@/domain/enterprise/entities/errors/order.error';
 import { Order } from '@/domain/enterprise/entities/order';
 import { OrderStatusError } from '@/domain/enterprise/entities/value-objects/errors/order-status.error';
 
@@ -44,7 +45,10 @@ export class CancelOrderUseCase {
     try {
       order.cancel();
     } catch (error) {
-      if (error instanceof OrderStatusError) {
+      // `OrderStatusError`: transição de status inválida (ex.: já cancelado).
+      // `OrderError`: regra de negócio do próprio `cancel()` (ex.: janela
+      // de cancelamento de pedidos `PLACED` expirada — ver `Order.cancel`).
+      if (error instanceof OrderStatusError || error instanceof OrderError) {
         return left(new OrderCannotBeCancelledError(error.message));
       }
 

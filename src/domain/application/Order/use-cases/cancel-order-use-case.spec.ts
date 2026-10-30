@@ -43,6 +43,25 @@ describe('[CancelOrderUseCase]', () => {
     expect(order.status.is('CANCELLED')).toBeTruthy();
   });
 
+  it('should not cancel a placed order after the 1h cancellation window has passed', async () => {
+    vi.useFakeTimers();
+
+    const order = makeOrderFactory({ status: OrderStatus.draft() });
+    order.place();
+    await inMemoryOrdersRepository.create(order);
+
+    vi.advanceTimersByTime(60 * 60 * 1000 + 1); // 1h + 1ms
+
+    const result = await sut.execute({ orderId: order.id.toValue() });
+
+    vi.useRealTimers();
+
+    expect(result.isLeft()).toBeTruthy();
+    assert(result.isLeft());
+    expect(result.value).toBeInstanceOf(OrderCannotBeCancelledError);
+    expect(order.status.is('PLACED')).toBeTruthy();
+  });
+
   it('should not cancel an order that is already cancelled', async () => {
     const order = makeOrderFactory();
     order.cancel();

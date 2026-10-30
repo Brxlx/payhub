@@ -191,6 +191,39 @@ describe('[Order]', () => {
       expect(order.domainEvents[0]).toBeInstanceOf(OrderCancelledEvent);
       expect((order.domainEvents[0] as OrderCancelledEvent).cancelledFrom).toBe('PLACED');
     });
+
+    describe('cancellation window for placed orders', () => {
+      afterEach(() => {
+        vi.useRealTimers();
+      });
+
+      it('should allow cancelling a placed order within the 1h window', () => {
+        vi.useFakeTimers();
+
+        order.place();
+        vi.advanceTimersByTime(59 * 60 * 1000); // 59min
+
+        expect(() => order.cancel()).not.toThrow();
+      });
+
+      it('should not allow cancelling a placed order after the 1h window has passed', () => {
+        vi.useFakeTimers();
+
+        order.place();
+        vi.advanceTimersByTime(60 * 60 * 1000 + 1); // 1h + 1ms
+
+        expect(() => order.cancel()).toThrow(OrderError);
+        expect(order.status.is('PLACED')).toBeTruthy();
+      });
+
+      it('should allow cancelling a draft order regardless of elapsed time', () => {
+        vi.useFakeTimers();
+
+        vi.advanceTimersByTime(60 * 60 * 1000 + 1); // 1h + 1ms, order ainda em DRAFT
+
+        expect(() => order.cancel()).not.toThrow();
+      });
+    });
   });
 
   describe('delete', () => {
