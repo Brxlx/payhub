@@ -1,0 +1,37 @@
+{
+  "name": "payhub",
+  "dockerComposeFile": "docker-compose.yml",
+  "service": "app",
+  "workspaceFolder": "/workspace",
+  "remoteUser": "node",
+  "postCreateCommand": "pnpm install",
+  "postStartCommand": "pnpm dev",
+  "forwardPorts": [3333, 5432, 5672, 15672],
+  "portsAttributes": {
+    "3333": {
+      "label": "API"
+    },
+    "5432": {
+      "label": "Postgres"
+    },
+    "5672": {
+      "label": "RabbitMQ (AMQP)"
+    },
+    "15672": {
+      "label": "RabbitMQ (Management UI)"
+    }
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode",
+        "editorconfig.editorconfig",
+        "vitest.explorer"
+      ],
+      "settings": {
+        "js/ts.tsdk.path": "node_modules/typescript/lib"
+      }
+    }
+  }
+}

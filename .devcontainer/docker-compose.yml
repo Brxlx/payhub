@@ -1,0 +1,44 @@
+services:
+  app:
+    build:
+      context: ..
+      dockerfile: .devcontainer/Dockerfile
+    volumes:
+      - ..:/workspace:cached
+      - payhub-node-modules:/workspace/node_modules
+    command: sleep infinity
+    depends_on:
+      - db
+      - rabbitmq
+    environment:
+      # Dentro da rede do compose o Postgres não está em "localhost" — ele é
+      # alcançado pelo nome do serviço. O restante das variáveis continua
+      # vindo do .env na raiz (ver EnvModule / envFilePath).
+      DATABASE_URL: postgresql://admin:admin@db:5432/payhub?schema=default
+
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin
+      POSTGRES_DB: payhub
+    volumes:
+      - payhub-db-data:/var/lib/postgresql/data
+    ports:
+      - '5432:5432'
+
+  rabbitmq:
+    # Imagem com o plugin de management (UI web) já habilitado.
+    image: rabbitmq:4-management
+    restart: unless-stopped
+    volumes:
+      - payhub-rabbitmq-data:/var/lib/rabbitmq
+    ports:
+      - '5672:5672' # AMQP
+      - '15672:15672' # UI de management (usuário/senha padrão: guest/guest)
+
+volumes:
+  payhub-node-modules:
+  payhub-db-data:
+  payhub-rabbitmq-data:

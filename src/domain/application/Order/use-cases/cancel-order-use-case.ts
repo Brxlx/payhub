@@ -43,6 +43,7 @@ export class CancelOrderUseCase {
     }
 
     try {
+      // Aciona .cancel(), forma segura de cancelar uma order DRAFT ou PLACED
       order.cancel();
     } catch (error) {
       // `OrderStatusError`: transição de status inválida (ex.: já cancelado).
