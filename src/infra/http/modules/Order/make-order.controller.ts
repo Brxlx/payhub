@@ -3,6 +3,7 @@ import { ApiBody, ApiCreatedResponse, ApiOperation } from '@nestjs/swagger';
 
 import { ZodValidationPipe } from '../../pipes/zod-validation.pipe';
 import { MakeOrderService } from './make-order.service';
+import { OrderPresenter } from './presenters/order.presenter';
 import { makeOrderSchema } from './types/make-order.schema';
 import { MakeOrderDTO, MakeOrderResponseDTO } from './types/order.dto';
 
@@ -20,20 +21,6 @@ export class MakeOrderController {
 
     if (result.isLeft()) throw result.value;
 
-    return {
-      id: result.value.order.id.toString(),
-      items: result.value.order.items.map((item) => {
-        return {
-          id: item.id.toString(),
-          quantity: item.quantity,
-          productId: item.productId.toString(),
-          unitPriceInCents: item.unitPrice.toJSON().amountInCents,
-        };
-      }),
-      total: result.value.order.total.toJSON().amountInCents,
-      status: result.value.order.status.current,
-      createdAt: result.value.order.createdAt,
-      updatedAt: result.value.order.updatedAt,
-    };
+    return OrderPresenter.toHTTP(result.value.order);
   }
 }
