@@ -9,18 +9,18 @@ import { Money } from '@/domain/enterprise/entities/value-objects/money.vo';
 
 import { OrdersRepository } from '../repositories/orders.repository';
 
-interface CreateOrderUseCaseRequestItem {
+interface MakeOrderUseCaseRequestItem {
   productId: string;
   quantity: number;
   unitPriceInCents: number;
 }
 
-interface CreateOrderUseCaseRequest {
+interface MakeOrderUseCaseRequest {
   customerId: string;
-  items: CreateOrderUseCaseRequestItem[];
+  items: MakeOrderUseCaseRequestItem[];
 }
 
-type CreateOrderUseCaseResponse = Either<OrderError, { order: Order }>;
+type MakeOrderUseCaseResponse = Either<OrderError, { order: Order }>;
 
 /**
  * PayHub não se comporta como carrinho: o pedido chega completo em uma
@@ -28,9 +28,9 @@ type CreateOrderUseCaseResponse = Either<OrderError, { order: Order }>;
  * — não existe um estado "rascunho salvo" intermediário na API.
  */
 export class MakeOrderUseCase {
-  constructor(private readonly orderRepository: OrdersRepository) {}
+  constructor(private readonly ordersRepository: OrdersRepository) {}
 
-  async execute({ customerId, items }: CreateOrderUseCaseRequest): Promise<CreateOrderUseCaseResponse> {
+  async execute({ customerId, items }: MakeOrderUseCaseRequest): Promise<MakeOrderUseCaseResponse> {
     const customerIdOrError = this.validateCustomerId(customerId);
 
     if (customerIdOrError.isLeft()) {
@@ -66,7 +66,7 @@ export class MakeOrderUseCase {
     return right(customerIdVo);
   }
 
-  private validateItems(items: CreateOrderUseCaseRequestItem[]): Either<OrderError, void> {
+  private validateItems(items: MakeOrderUseCaseRequestItem[]): Either<OrderError, void> {
     if (items.length === 0) {
       return left(new OrderError('Cannot create an order without at least one item'));
     }
@@ -80,7 +80,7 @@ export class MakeOrderUseCase {
    * inválida, etc.) e convertendo em `Either` em vez de deixar a exceção
    * estourar para fora do use-case.
    */
-  private buildOrder(customerId: ID, items: CreateOrderUseCaseRequestItem[]): Either<OrderError, Order> {
+  private buildOrder(customerId: ID, items: MakeOrderUseCaseRequestItem[]): Either<OrderError, Order> {
     try {
       const orderId = new ID();
 
@@ -109,7 +109,7 @@ export class MakeOrderUseCase {
   }
 
   private async persistOrder(order: Order): Promise<void> {
-    await this.orderRepository.create(order);
+    await this.ordersRepository.create(order);
 
     // TODO: a implementação concreta de `OrdersRepository.create` (Drizzle)
     // deve, na mesma transação, persistir `orders` + `order_items` e uma

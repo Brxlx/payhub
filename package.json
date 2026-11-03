@@ -18,7 +18,10 @@
     "test:cov": "vitest run --coverage",
     "test:debug": "vitest --inspect-brk --no-file-parallelism",
     "test:e2e": "vitest run --config ./vitest.config.e2e.mjs",
-    "test:e2e:watch": "vitest --config ./vitest.config.e2e.mjs"
+    "test:e2e:watch": "vitest --config ./vitest.config.e2e.mjs",
+    "db:generate": "drizzle-kit generate --name",
+    "db:migrate": "drizzle-kit migrate",
+    "db:studio": "drizzle-kit studio --port=3500"
   },
   "dependencies": {
     "@faker-js/faker": "^10.6.0",
@@ -28,9 +31,12 @@
     "@nestjs/platform-express": "^11.0.1",
     "@nestjs/swagger": "^12.0.3",
     "@scalar/nestjs-api-reference": "^1.2.31",
+    "drizzle-orm": "^0.45.4",
     "nestjs-zod": "^5.5.0",
+    "pg": "^8.23.1",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
+    "sql-formatter": "^15.9.0",
     "zod": "^4.6.7"
   },
   "devDependencies": {
@@ -42,9 +48,11 @@
     "@swc/core": "^1.16.20",
     "@types/express": "^5.0.0",
     "@types/node": "^24.0.0",
+    "@types/pg": "^8.23.1",
     "@types/supertest": "^7.0.0",
     "@typescript-eslint/eslint-plugin": "^8.72.0",
     "@vitest/coverage-v8": "^5.0.5",
+    "drizzle-kit": "^0.31.11",
     "eslint": "^9.18.0",
     "eslint-config-prettier": "^10.0.1",
     "eslint-plugin": "^1.0.1",

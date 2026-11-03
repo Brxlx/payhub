@@ -12,9 +12,7 @@ export class EnvValidationError extends Error {
 }
 
 export const envSchema = z.object({
-  NODE_ENV: z
-    .enum(['development', 'production', 'test'])
-    .default('development'),
+  NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
   APP_PORT: z.coerce.number().default(3333),
   BASE_URL: z.url(),
   DATABASE_URL: z.url().startsWith('postgresql://'),

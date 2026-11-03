@@ -23,11 +23,11 @@ export class OpenApi {
         slug: 'payhub',
         content: document,
         theme: 'elysiajs',
-        pageTitle: 'ayHub Api Documentation',
+        pageTitle: 'PayHub Api Documentation',
         title: 'ayHub Api Documentation',
         servers: [
           {
-            url: 'http://localhost:9300',
+            url: 'http://localhost:3333',
             description: 'Servidor Local (Desenvolvimento)',
           },
           {
