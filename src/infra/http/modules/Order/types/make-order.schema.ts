@@ -30,4 +30,5 @@ export const makeOrderResponseSchema = z.object({
   status: z.enum(['DRAFT', 'PLACED', 'CANCELLED']).default('PLACED'),
   createdAt: z.iso.datetime(),
   updatedAt: z.iso.datetime().nullable(),
+  deletedAt: z.iso.datetime().nullable(),
 });

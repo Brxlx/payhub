@@ -74,6 +74,18 @@ describe('[CancelOrderUseCase]', () => {
     expect(result.value).toBeInstanceOf(OrderCannotBeCancelledError);
   });
 
+  it('should not cancel a deleted order', async () => {
+    const order = makeOrderFactory();
+    order.delete();
+    await inMemoryOrdersRepository.create(order);
+
+    const result = await sut.execute({ orderId: order.id.toValue() });
+
+    expect(result.isLeft()).toBeTruthy();
+    assert(result.isLeft());
+    expect(result.value).toBeInstanceOf(OrderCannotBeCancelledError);
+  });
+
   it('should return an error when the order does not exist', async () => {
     const result = await sut.execute({ orderId: new ID().toValue() });
 

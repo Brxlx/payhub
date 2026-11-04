@@ -167,6 +167,10 @@ export class Order extends AggregateRoot<OrderProps> {
    * negócio, não se aplica a `DRAFT` (nunca confirmado, sem janela).
    */
   public cancel(): void {
+    if (this.isDeleted) {
+      throw new OrderError('Cannot cancel a deleted order');
+    }
+
     const cancelledFrom = this.props.status.current;
 
     if (cancelledFrom === 'PLACED') {

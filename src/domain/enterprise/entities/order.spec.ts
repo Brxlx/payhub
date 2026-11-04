@@ -173,6 +173,13 @@ describe('[Order]', () => {
       expect(() => order.cancel()).toThrow(OrderStatusError);
     });
 
+    it('should not allow cancelling a deleted order', () => {
+      order.delete();
+
+      expect(() => order.cancel()).toThrow(OrderError);
+      expect(order.status.is('DRAFT')).toBeTruthy();
+    });
+
     it('should emit an OrderCancelledEvent with cancelledFrom=DRAFT when cancelling a draft order', () => {
       order.cancel();
 

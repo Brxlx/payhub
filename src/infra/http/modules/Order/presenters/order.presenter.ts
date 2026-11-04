@@ -17,6 +17,7 @@ export interface OrderHTTPResponse {
   status: OrderStatusValue;
   createdAt: string;
   updatedAt: string | null;
+  deletedAt: string | null;
 }
 
 export class OrderPresenter {
@@ -29,6 +30,7 @@ export class OrderPresenter {
       status: order.status.current,
       createdAt: order.createdAt.toISOString(),
       updatedAt: order.updatedAt ? order.updatedAt.toISOString() : null,
+      deletedAt: order.deletedAt ? order.deletedAt.toISOString() : null,
     };
   }
 

@@ -21,4 +21,5 @@ export const cancelOrderResponseSchema = z.object({
   status: z.enum(['DRAFT', 'PLACED', 'CANCELLED']).default('CANCELLED'),
   createdAt: z.iso.datetime(),
   updatedAt: z.iso.datetime().nullable(),
+  deletedAt: z.iso.datetime().nullable(),
 });

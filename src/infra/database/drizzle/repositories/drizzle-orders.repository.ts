@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { and, count, desc, eq, inArray, isNull } from 'drizzle-orm';
+import { count, desc, eq, inArray, isNull } from 'drizzle-orm';
 
 import {
   FindManyOrdersParams,
@@ -33,11 +33,13 @@ export class DrizzleOrdersRepository implements OrdersRepository {
   }
 
   async findById(id: string): Promise<Order | null> {
-    const [orderRow] = await this.drizzle.db
-      .select()
-      .from(orders)
-      .where(and(eq(orders.id, id), isNull(orders.deletedAt)))
-      .limit(1);
+    // Não filtra `deletedAt`: soft-deleted só fica oculto em listagens
+    // (`findManyWithFilters`). Uma busca direta por id precisa continuar
+    // encontrando o pedido mesmo deletado — é o que permite tanto
+    // `FindOrderByIdUseCase` exibir detalhes de um pedido já deletado quanto
+    // `DeleteOrderUseCase`/`Order.delete()` lançarem o erro correto
+    // ("Order is already deleted") em vez de um falso `OrderNotFoundError`.
+    const [orderRow] = await this.drizzle.db.select().from(orders).where(eq(orders.id, id)).limit(1);
 
     if (!orderRow) return null;
 

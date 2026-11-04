@@ -2,6 +2,7 @@ import { ArgumentsHost, Catch, ExceptionFilter, HttpException, HttpStatus } from
 import { Response } from 'express';
 
 import { OrderCannotBeCancelledError } from '@/domain/application/Order/errors/order-cannot-be-cancelled.error';
+import { OrderCannotBeDeletedError } from '@/domain/application/Order/errors/order-cannot-be-deleted.error';
 import { OrderNotFoundError } from '@/domain/application/Order/errors/order-not-found.error';
 import { OrderError } from '@/domain/enterprise/entities/errors/order.error';
 
@@ -28,6 +29,7 @@ export class UseCaseErrorFilter implements ExceptionFilter {
     [OrderError.name, HttpStatus.BAD_REQUEST],
     [OrderNotFoundError.name, HttpStatus.NOT_FOUND],
     [OrderCannotBeCancelledError.name, HttpStatus.CONFLICT],
+    [OrderCannotBeDeletedError.name, HttpStatus.CONFLICT],
   ]);
 
   // Estratégias de extração baseadas no tipo de resposta
