@@ -1,6 +1,10 @@
 import { ArgumentsHost, Catch, ExceptionFilter, HttpException, HttpStatus } from '@nestjs/common';
 import { Response } from 'express';
 
+import { OrderCannotBeCancelledError } from '@/domain/application/Order/errors/order-cannot-be-cancelled.error';
+import { OrderNotFoundError } from '@/domain/application/Order/errors/order-not-found.error';
+import { OrderError } from '@/domain/enterprise/entities/errors/order.error';
+
 // Interface para representar a estrutura da resposta do NestJS para exceções HTTP
 interface NestHttpExceptionResponse {
   message: string | string[];
@@ -20,7 +24,11 @@ type ResponseExtractor = (response: unknown) => NestHttpExceptionResponse;
 
 @Catch(Error)
 export class UseCaseErrorFilter implements ExceptionFilter {
-  private mapErroToStatusCode = new Map<string, HttpStatus>([['UserNotFoundError', HttpStatus.NOT_FOUND]]);
+  private mapErroToStatusCode = new Map<string, HttpStatus>([
+    [OrderError.name, HttpStatus.BAD_REQUEST],
+    [OrderNotFoundError.name, HttpStatus.NOT_FOUND],
+    [OrderCannotBeCancelledError.name, HttpStatus.CONFLICT],
+  ]);
 
   // Estratégias de extração baseadas no tipo de resposta
   private extractors: Record<string, ResponseExtractor> = {

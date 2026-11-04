@@ -31,6 +31,7 @@ export class App {
     await this.app.listen(this.port!, '0.0.0.0', () => {
       this.logger.log(`✅ Server started on port ${this.port}`);
     });
+    this.app.enableShutdownHooks();
   }
 
   public async run() {
