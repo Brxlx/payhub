@@ -18,9 +18,12 @@ A divisão de responsabilidade é deliberada:
 
 - [x] Listar pedidos com paginação por `page`/`itemsPerPage`.
 - [x] Devolver `total` e `hasMore`.
+- [x] Implementação real via Drizzle de
+      `OrdersRepository.findManyWithFilters` (antes só havia
+      `InMemoryOrdersRepository`).
 - [ ] Filtro por valor (ex.: `status=PLACED`, `customerId=...`) — **não
       implementado**. Ver nota sobre `OrderFilters` abaixo.
-- [ ] Endpoint HTTP (`GET /orders`).
+- [ ] Endpoint HTTP (`GET /orders`) — ainda não implementado.
 
 ## Requisitos funcionais
 
@@ -33,6 +36,22 @@ A divisão de responsabilidade é deliberada:
 - [x] Retorna `{ orders, total, page, itemsPerPage, hasMore }`.
 - [x] Página além do total de registros não é erro — retorna lista vazia
       com `hasMore: false`.
+
+### Implementação real (Drizzle)
+
+- [x] `DrizzleOrdersRepository.findManyWithFilters` busca a página de
+      `orders` (`orderBy(desc(createdAt))`, `limit`/`offset`) e a contagem
+      total (`count()`) em paralelo (`Promise.all`).
+- [x] Busca os `order_items` de todos os pedidos da página numa única
+      query (`inArray(orderItems.orderId, orderIds)`), agrupando em
+      memória por `orderId` antes de montar cada agregado via
+      `OrderMapper.toDomain` — evita N+1 queries.
+- [x] Filtra `isNull(orders.deletedAt)`: pedidos soft-deletados não
+      aparecem na listagem. Essa é a metade "esconde em listas" da decisão
+      de visibilidade documentada em `prds/soft-delete-order.md` — a outra
+      metade (`findById` encontra mesmo deletado) está em
+      `prds/find-order-by-id.md`.
+- [x] `hasMore` calculado como `offset + resultOrders.length < total`.
 
 ## Regras de validação / erros
 
@@ -71,14 +90,16 @@ estar carregado). Projeção de campos só faz sentido num read model dedicado
   nesta cadeia; documentado como tal no próprio arquivo)
 - `test/repositories/in-memory-orders-repository.ts`
   (`findManyWithFilters`, cálculo de `hasMore`)
+- `src/infra/database/drizzle/repositories/drizzle-orders.repository.ts`
+  (`findManyWithFilters` — implementação real)
 
 ## Em aberto
 
 - [ ] Endpoint HTTP `GET /orders` (com `page`/`itemsPerPage` via query
-      string, validados por Zod — README seção 7).
-- [ ] Implementação real via Drizzle de
-      `OrdersRepository.findManyWithFilters` (hoje só
-      `InMemoryOrdersRepository`).
+      string, validados por Zod — README seção 7) — ainda não há
+      controller/service para este use case (diferente de `create-order`,
+      `cancel-order` e `soft-delete-order`, que já têm camada HTTP
+      completa).
 - [ ] Read model `OrderSummary` + CQRS, para reaproveitar `OrderFilters` de
       verdade (ver seção acima e README seção 15).
 - [ ] Migração de paginação offset → cursor quando `orders` passar de

@@ -19,7 +19,11 @@ inalcançável na prática para qualquer pedido criado via API.
       via `Order.cancel()`).
 - [x] Janela de cancelamento de 1h para pedidos `PLACED` (ver nota abaixo).
 - [x] Disparar `OrderCancelledEvent` ao cancelar (ver nota abaixo).
-- [ ] Endpoint HTTP (`POST /orders/:id/cancel`, README seção 14.1).
+- [x] Impedir cancelamento de um pedido já soft-deletado (ver seção
+      dedicada abaixo — regra adicionada depois do escopo inicial, durante
+      testes manuais do fluxo HTTP ponta-a-ponta).
+- [x] Endpoint HTTP (`POST /orders/:id/cancel`, README seção 14.1).
+- [x] Persistência real via Drizzle (`DrizzleOrdersRepository.update`).
 - [ ] Publicar `OrderCancelledEvent` no RabbitMQ (routing key
       `order.cancelled`, README seção 8.1) — depende do módulo de
       mensageria, que ainda não existe.
@@ -30,10 +34,24 @@ inalcançável na prática para qualquer pedido criado via API.
 - [x] Valida `orderId` como `ID` (cuid2) válido.
 - [x] Busca o pedido via `OrdersRepository.findById`.
 - [x] Chama `order.cancel()`, traduzindo `OrderStatusError` (lançado por
-      `OrderStatus.transitionTo`) em `OrderCannotBeCancelledError`.
+      `OrderStatus.transitionTo`) e `OrderError` (lançado pelo próprio
+      `Order.cancel()`) em `OrderCannotBeCancelledError`.
 - [x] Persiste via `OrdersRepository.update()`.
 - [x] Retorna `Either<OrderNotFoundError | OrderCannotBeCancelledError,
       { order: Order }>`.
+
+### Camada HTTP
+
+- [x] `POST /orders/:id/cancel`, `200 OK` (não `201` — não é criação de
+      recurso).
+- [x] Validação do path param `id` via Zod (`cancelOrderParamsSchema`,
+      mesmo padrão de `ID.isValid()` do `customerId` de `create-order`).
+- [x] Resposta serializada via `OrderPresenter.toHTTP` (mesmo shape
+      reaproveitado de `create-order`/`soft-delete-order`).
+- [x] `OrderNotFoundError` → `404`; `OrderCannotBeCancelledError` → `409`
+      (`use-case-error.filter.ts`) — recurso existe, mas o estado atual
+      não permite a transição (já cancelado, já deletado, ou janela de 1h
+      expirada).
 
 ## Regras de validação / erros
 
@@ -48,6 +66,42 @@ inalcançável na prática para qualquer pedido criado via API.
       `OrderError`, lançado por `Order.cancel()`/
       `assertWithinCancellationWindow` — regra de negócio, não se aplica
       a `DRAFT`, que não tem `placedAt`).
+- [x] Pedido já soft-deletado (`isDeleted === true`) →
+      `OrderCannotBeCancelledError` (via novo guard em `Order.cancel()` —
+      ver seção abaixo).
+
+## Guard contra cancelamento de pedido deletado
+
+Ao testar o fluxo HTTP ponta-a-ponta manualmente, identificamos que
+`Order.cancel()` não verificava `isDeleted`: um pedido `DRAFT`
+soft-deletado ainda conseguia transicionar para `CANCELLED`, mesmo já
+estando "arquivado" pelo soft delete. Decisão tomada: soft delete é
+terminal — nenhuma mutação de estado deveria ser permitida depois dele, a
+exemplo do guard equivalente que `Order.delete()` já tinha para si mesmo
+(`'Order is already deleted'`).
+
+Corrigido adicionando, no topo de `Order.cancel()`:
+
+```ts
+if (this.isDeleted) {
+  throw new OrderError('Cannot cancel a deleted order');
+}
+```
+
+Esse guard só se tornou **observável** depois de outra correção
+relacionada: `DrizzleOrdersRepository.findById` originalmente filtrava
+`isNull(orders.deletedAt)`, então um pedido deletado simplesmente "não
+existia" para `findById` — o `CancelOrderUseCase` nunca alcançava o guard,
+retornando `OrderNotFoundError` (404) em vez do `OrderCannotBeCancelledError`
+(409) semanticamente correto. `findById` foi corrigido para não filtrar
+soft-deleted (ver detalhes e motivação completa em
+`prds/soft-delete-order.md` e `prds/find-order-by-id.md`).
+
+- [x] Guard adicionado em `Order.cancel()`.
+- [x] Teste de domínio em `order.spec.ts`
+      (`'should not allow cancelling a deleted order'`).
+- [x] Teste de use case em `cancel-order-use-case.spec.ts`
+      (`'should not cancel a deleted order'`).
 
 ## Janela de cancelamento (1h)
 
@@ -84,10 +138,15 @@ Atende à topologia já documentada no README (seção 8.1): routing key
 - [x] `OrderCancelledEvent` criado em
       `domain/enterprise/entities/events/order-cancelled.event.ts`.
 - [x] `Order.cancel()` captura o status anterior e dispara o evento.
+- [x] `DrizzleOrdersRepository.update` chama
+      `DomainEvents.dispatchEventsForAggregate(order.id)` após persistir,
+      disparando o evento para os handlers registrados.
 - [ ] Publisher real (RabbitMQ) e persistência na tabela de outbox — mesmo
       estágio pendente que `OrderPlacedEvent` em `create-order.md`.
 
 ## Arquivos envolvidos
+
+### Domínio
 
 - `src/domain/enterprise/entities/order.ts` (`cancel`)
 - `src/domain/enterprise/entities/order.spec.ts`
@@ -98,12 +157,33 @@ Atende à topologia já documentada no README (seção 8.1): routing key
 - `src/domain/application/Order/errors/order-not-found.error.ts`
   (reaproveitado de `delete-order`)
 
+### Infra (persistência)
+
+- `src/infra/database/drizzle/repositories/drizzle-orders.repository.ts`
+  (`findById`, `update`)
+
+### Infra (HTTP)
+
+- `src/infra/http/modules/Order/cancel-order.controller.ts`
+- `src/infra/http/modules/Order/cancel-order.service.ts`
+- `src/infra/http/modules/Order/types/cancel-order.schema.ts`
+- `src/infra/http/modules/Order/types/order.dto.ts`
+- `src/infra/http/modules/Order/presenters/order.presenter.ts`
+  (reaproveitado de `create-order`)
+- `src/infra/http/modules/Order/order.module.ts`
+- `src/infra/http/pipes/zod-validation.pipe.ts` (fix: usa `metadata.data`
+  como fallback de path quando o schema valida um campo isolado, ex.:
+  `@Param('id', pipe)` — sem isso, o erro de validação do `id` vinha sem
+  identificar o campo, ver `prds/soft-delete-order.md`)
+- `src/infra/http/filters/use-case-error.filter.ts`
+
 ## Em aberto
 
-- [ ] Endpoint HTTP `POST /orders/:id/cancel`.
-- [ ] Persistência real via Drizzle (hoje só `InMemoryOrdersRepository`).
 - [ ] Publisher do `OrderCancelledEvent` no RabbitMQ + escrita na tabela
       de outbox na mesma transação de `update`.
 - [ ] Avaliar se o estorno de cobrança (quando `cancelledFrom === 'PLACED'`)
       deve ser orquestrado por este use case ou por um consumidor separado
       reagindo ao evento — hoje não há módulo de pagamentos implementado.
+- [ ] `cancelOrderResponseSchema` duplica o mesmo shape de
+      `makeOrderResponseSchema`/`deleteOrderResponseSchema` — decisão
+      deliberada por ora, extrair quando mais endpoints existirem.

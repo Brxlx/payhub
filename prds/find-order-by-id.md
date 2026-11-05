@@ -12,8 +12,9 @@ uma ação) é a camada consumidora, não este use case.
 
 - [x] Buscar um `Order` pelo seu `id`.
 - [x] Encontrar pedidos soft-deletados normalmente (não é tratado como
-      "não encontrado").
-- [ ] Endpoint HTTP (`GET /orders/:id`).
+      "não encontrado") — decisão confirmada e corrigida na implementação
+      real (ver seção abaixo).
+- [ ] Endpoint HTTP (`GET /orders/:id`) — ainda não implementado.
 
 ## Requisitos funcionais
 
@@ -31,6 +32,27 @@ uma ação) é a camada consumidora, não este use case.
 - [x] Pedido soft-deletado **não** é tratado como erro — é retornado
       normalmente, com `order.isDeleted === true`.
 
+## Bug encontrado e corrigido na implementação real (Drizzle)
+
+Este PRD já documentava a decisão "busca por id encontra pedido mesmo
+deletado" e o spec correspondente
+(`'should find an order that has been soft-deleted'`) já cobria isso contra
+o `InMemoryOrdersRepository`. Mas `DrizzleOrdersRepository.findById` — a
+implementação real usada em produção — tinha sido escrita filtrando
+`isNull(orders.deletedAt)`, divergindo desse contrato sem que nenhum teste
+pegasse (o spec deste use case só roda contra o repositório em memória).
+
+O bug só ficou visível testando manualmente outro fluxo
+(`DELETE /orders/:id` numa order já deletada devolvendo `404` em vez de
+`409` — ver `prds/soft-delete-order.md` para a investigação completa).
+Corrigido removendo o filtro de `findById` no Drizzle, alinhando com o que
+este PRD e os testes já assumiam.
+
+- [x] `DrizzleOrdersRepository.findById` não filtra mais `deletedAt`.
+- [x] `DrizzleOrdersRepository.findManyWithFilters` continua filtrando
+      `deletedAt` — listagens escondem pedidos deletados, busca direta por
+      id não (ver decisão completa em `prds/soft-delete-order.md`).
+
 ## Arquivos envolvidos
 
 - `src/domain/application/Order/use-cases/find-order-by-id-use.case.ts`
@@ -38,10 +60,15 @@ uma ação) é a camada consumidora, não este use case.
 - `src/domain/enterprise/entities/order.ts` (`isDeleted`, `deletedAt`)
 - `src/domain/application/Order/repositories/orders.repository.ts`
   (`OrdersRepository.findById`)
+- `src/infra/database/drizzle/repositories/drizzle-orders.repository.ts`
+  (`findById` — implementação real, fix do filtro de `deletedAt`)
 
 ## Em aberto
 
-- [ ] Endpoint HTTP `GET /orders/:id`.
-- [ ] Decidir, na camada que consome este use case (ex.: controller HTTP),
-      o que fazer com um pedido soft-deletado — hoje ele é devolvido
-      normalmente, cabe ao chamador decidir se esconde/avisa/bloqueia.
+- [ ] Endpoint HTTP `GET /orders/:id` — ainda não há controller/service
+      para este use case (diferente de `create-order`, `cancel-order` e
+      `soft-delete-order`, que já têm camada HTTP completa).
+- [x] ~~Decidir, na camada que consome este use case, o que fazer com um
+      pedido soft-deletado~~ — resolvido: ele é devolvido normalmente, com
+      `isDeleted: true`, tanto no use case quanto na implementação real do
+      repositório.

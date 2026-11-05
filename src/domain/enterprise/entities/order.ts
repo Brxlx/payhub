@@ -2,7 +2,10 @@ import { AggregateRoot } from '@/core/entities/aggregate-root';
 import { ID } from '@/core/entities/id';
 import { Optional } from '@/core/types/optional';
 
-import { ORDER_CANCELLATION_WINDOW_MS } from '../../../core/consts/order.consts';
+import {
+  ORDER_CANCELLATION_WINDOW_HOURS,
+  ORDER_CANCELLATION_WINDOW_MS,
+} from '../../../core/consts/order.consts';
 import { OrderError } from './errors/order.error';
 import { OrderCancelledEvent } from './events/order-cancelled.event';
 import { OrderPlacedEvent } from './events/order-placed.event';
@@ -215,9 +218,7 @@ export class Order extends AggregateRoot<OrderProps> {
     const elapsedMs = Date.now() - this.props.placedAt.getTime();
 
     if (elapsedMs > ORDER_CANCELLATION_WINDOW_MS) {
-      throw new OrderError(
-        `Cannot cancel an order placed more than ${ORDER_CANCELLATION_WINDOW_MS / (60 * 60 * 1000)}h ago`,
-      );
+      throw new OrderError(`Cannot cancel an order placed more than ${ORDER_CANCELLATION_WINDOW_HOURS}h ago`);
     }
   }
 
