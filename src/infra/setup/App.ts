@@ -1,8 +1,9 @@
 import { INestApplication, Logger } from '@nestjs/common';
 
-import { prefixedLogger } from '../helpers/prefixed-logger';
-import { Env } from '../shared/env/env.schema';
-import { EnvService } from '../shared/env/env.service';
+import { prefixedLogger } from '@/infra/helpers/prefixed-logger';
+import { Env } from '@/infra/shared/env/env.schema';
+import { EnvService } from '@/infra/shared/env/env.service';
+
 import { OpenApi } from './OpenApi';
 
 export class App {

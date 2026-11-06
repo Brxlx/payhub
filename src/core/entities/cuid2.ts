@@ -40,10 +40,7 @@ export class Cuid2 {
   private static readonly DEFAULT_LENGTH = 24;
   private static readonly BLOCK_SIZE = 4;
   private static readonly BASE = 36; // Base36: 0-9a-z
-  private static readonly DISCRETE_VALUES = Math.pow(
-    Cuid2.BASE,
-    Cuid2.BLOCK_SIZE,
-  );
+  private static readonly DISCRETE_VALUES = Math.pow(Cuid2.BASE, Cuid2.BLOCK_SIZE);
 
   // Variáveis de instância
   private readonly length: number;
@@ -83,8 +80,7 @@ export class Cuid2 {
     this.counter = this.incrementCounter();
 
     // Calcula quantos caracteres aleatórios precisamos para alcançar o comprimento desejado
-    const usedLength =
-      time.length + this.counter.length + this.fingerprint.length;
+    const usedLength = time.length + this.counter.length + this.fingerprint.length;
     const randomLength = this.length - usedLength;
 
     // Gera a parte aleatória de alta entropia

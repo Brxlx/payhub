@@ -67,4 +67,32 @@ export default tseslint.config(
       ],
     },
   },
+  {
+    // Escopo deliberadamente restrito: fora de `infra/http/modules`, um
+    // `../` de um nível (ex.: use-case → `../repositories/...`) é o padrão
+    // de co-localização DDD do projeto, não duplicação a corrigir. Aqui,
+    // em controllers, um `../../` indicava import repetido (ex.: o pipe de
+    // validação Zod) que já existe via `@/infra/http/pipes/...`.
+    //
+    // Usa `no-restricted-imports` (core do ESLint) em vez de
+    // `import/no-relative-parent-imports`: aquela regra casa no caminho
+    // *resolvido* no disco, não no texto do import — então ela reportava
+    // até o `@/infra/http/pipes/...` (o alias resolve pra fora da pasta
+    // do controller do mesmo jeito). O que queremos banir é a sintaxe
+    // literal `../../`, não a travessia de diretório em si.
+    files: ['src/infra/http/modules/**/*.controller.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: ['../../*', '../../**'],
+              message: "Use o alias '@/infra/...' em vez de subir diretórios com '../../'.",
+            },
+          ],
+        },
+      ],
+    },
+  },
 );

@@ -1,7 +1,8 @@
 import { Controller, Get, HttpCode, HttpStatus, Query } from '@nestjs/common';
 import { ApiOkResponse, ApiOperation, ApiQuery } from '@nestjs/swagger';
 
-import { ZodValidationPipe } from '../../pipes/zod-validation.pipe';
+import { ZodValidationPipe } from '@/infra/http/pipes/zod-validation.pipe';
+
 import { FindManyOrdersService } from './find-many-orders.service';
 import { OrderPresenter } from './presenters/order.presenter';
 import { findManyOrdersQuerySchema } from './types/find-many-orders.schema';
@@ -17,7 +18,9 @@ export class FindManyOrdersController {
   @ApiOkResponse({ type: FindManyOrdersResponseDTO })
   @HttpCode(HttpStatus.OK)
   @Get()
-  async handle(@Query(new ZodValidationPipe(findManyOrdersQuerySchema)) query: { page?: number; itemsPerPage?: number }) {
+  async handle(
+    @Query(new ZodValidationPipe(findManyOrdersQuerySchema)) query: { page?: number; itemsPerPage?: number },
+  ) {
     const result = await this.findManyOrdersService.execute({
       page: query.page,
       itemsPerPage: query.itemsPerPage,

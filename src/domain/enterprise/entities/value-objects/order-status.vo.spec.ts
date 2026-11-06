@@ -52,8 +52,6 @@ describe('[OrderStatus]', () => {
 
   it('should compare equality by value', () => {
     expect(OrderStatus.draft().equals(OrderStatus.draft())).toBeTruthy();
-    expect(
-      OrderStatus.draft().equals(OrderStatus.create('PLACED')),
-    ).toBeFalsy();
+    expect(OrderStatus.draft().equals(OrderStatus.create('PLACED'))).toBeFalsy();
   });
 });

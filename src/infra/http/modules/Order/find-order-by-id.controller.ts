@@ -1,7 +1,8 @@
 import { Controller, Get, HttpCode, HttpStatus, Param } from '@nestjs/common';
 import { ApiOkResponse, ApiOperation, ApiParam } from '@nestjs/swagger';
 
-import { ZodValidationPipe } from '../../pipes/zod-validation.pipe';
+import { ZodValidationPipe } from '@/infra/http/pipes/zod-validation.pipe';
+
 import { FindOrderByIdService } from './find-order-by-id.service';
 import { OrderPresenter } from './presenters/order.presenter';
 import { findOrderByIdParamsSchema } from './types/find-order-by-id.schema';

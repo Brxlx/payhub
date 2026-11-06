@@ -1,7 +1,8 @@
 import { Controller, HttpCode, HttpStatus, Param, Post } from '@nestjs/common';
 import { ApiOkResponse, ApiOperation, ApiParam } from '@nestjs/swagger';
 
-import { ZodValidationPipe } from '../../pipes/zod-validation.pipe';
+import { ZodValidationPipe } from '@/infra/http/pipes/zod-validation.pipe';
+
 import { CancelOrderService } from './cancel-order.service';
 import { OrderPresenter } from './presenters/order.presenter';
 import { cancelOrderParamsSchema } from './types/cancel-order.schema';

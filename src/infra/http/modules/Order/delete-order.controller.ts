@@ -1,7 +1,8 @@
 import { Controller, Delete, HttpCode, HttpStatus, Param } from '@nestjs/common';
 import { ApiOkResponse, ApiOperation, ApiParam } from '@nestjs/swagger';
 
-import { ZodValidationPipe } from '../../pipes/zod-validation.pipe';
+import { ZodValidationPipe } from '@/infra/http/pipes/zod-validation.pipe';
+
 import { DeleteOrderService } from './delete-order.service';
 import { OrderPresenter } from './presenters/order.presenter';
 import { deleteOrderParamsSchema } from './types/delete-order.schema';

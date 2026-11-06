@@ -1,9 +1,9 @@
 import { Module } from '@nestjs/common';
 
 import { OrdersRepository } from '@/domain/application/Order/repositories/orders.repository';
+import { EnvModule } from '@/infra/shared/env/env.module';
+import { EnvService } from '@/infra/shared/env/env.service';
 
-import { EnvModule } from '../shared/env/env.module';
-import { EnvService } from '../shared/env/env.service';
 import { DrizzleService } from './drizzle/drizzle.service';
 import { DrizzleOrdersRepository } from './drizzle/repositories/drizzle-orders.repository';
 

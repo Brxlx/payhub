@@ -65,6 +65,7 @@ describe('[FindOrderByIdUseCase]', () => {
   it('should find an order that has been soft-deleted', async () => {
     const order = makeOrderFactory();
     await inMemoryOrdersRepository.create(order);
+    expect(order.status.current).toEqual('DRAFT');
 
     order.delete();
     await inMemoryOrdersRepository.update(order);
@@ -74,6 +75,7 @@ describe('[FindOrderByIdUseCase]', () => {
     expect(result.isRight()).toBeTruthy();
     assert(result.isRight());
     expect(result.value.order.id).toEqual(order.id);
+    expect(result.value.order.status.current).toEqual('DRAFT');
     expect(result.value.order.isDeleted).toBeTruthy();
     expect(result.value.order.deletedAt).toEqual(order.deletedAt);
   });

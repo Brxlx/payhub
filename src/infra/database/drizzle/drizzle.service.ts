@@ -5,8 +5,8 @@ import { Pool } from 'pg';
 import { format } from 'sql-formatter';
 
 import { prefixedLogger } from '@/infra/helpers/prefixed-logger';
+import { EnvService } from '@/infra/shared/env/env.service';
 
-import { EnvService } from '../../shared/env/env.service';
 import { DatabaseSchema, drizzleSchemaConfig, schemas } from './schemas';
 
 /**

@@ -21,7 +21,7 @@ export interface OrderHTTPResponse {
 }
 
 export class OrderPresenter {
-  static toHTTP(order: Order): OrderHTTPResponse {
+  static toHTTP(this: void, order: Order): OrderHTTPResponse {
     return {
       id: order.id.toString(),
       customerId: order.customerId.toString(),
