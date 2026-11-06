@@ -4,6 +4,7 @@ import { InMemoryOrdersRepository } from 'test/repositories/in-memory-orders-rep
 import { ID } from '@/core/entities/id';
 import { OrderError } from '@/domain/enterprise/entities/errors/order.error';
 
+import { OrderNotFoundError } from '../errors/order-not-found.error';
 import { FindOrderByIdUseCase } from './find-order-by-id-use.case';
 
 describe('[FindOrderByIdUseCase]', () => {
@@ -42,6 +43,14 @@ describe('[FindOrderByIdUseCase]', () => {
     assert(result.isLeft());
     expect(result.value).toBeInstanceOf(OrderError);
     expect(result.value.message).toEqual('Invalid ID');
+  });
+
+  it('should return an error when a valid id has no matching order', async () => {
+    const result = await sut.execute({ id: new ID().toValue() });
+
+    expect(result.isLeft()).toBeTruthy();
+    assert(result.isLeft());
+    expect(result.value).toBeInstanceOf(OrderNotFoundError);
   });
 
   it('should return an error when id is an empty string', async () => {
