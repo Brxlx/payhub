@@ -12,6 +12,21 @@ export interface FindManyOrdersResult {
 }
 
 export abstract class OrdersRepository {
+  /**
+   * Persiste um novo agregado `Order` (+ seus `OrderItem`s).
+   *
+   * Contrato do port, obrigatório para qualquer implementação (Drizzle
+   * ou outra): se `order.domainEvents` não estiver vazio no momento da
+   * chamada, a implementação deve persistir esses eventos (Outbox
+   * pattern — ver README, seção 8.3) na **mesma transação atômica** que
+   * grava o agregado. Não há meio-termo aqui: salvar o agregado e gravar
+   * a outbox em operações separadas reabre exatamente o problema que o
+   * padrão existe para resolver (o processo pode cair entre as duas
+   * escritas, perdendo ou duplicando o evento). Este método não deve
+   * disparar a entrega externa do evento (RabbitMQ) — isso é
+   * responsabilidade de um worker separado que lê a outbox depois do
+   * commit.
+   */
   abstract create(order: Order): Promise<void>;
   abstract findById(id: string): Promise<Order | null>;
 
@@ -37,6 +52,11 @@ export abstract class OrdersRepository {
    * soft delete: `DeleteOrderUseCase` chama `order.delete()` (que apenas
    * marca `deletedAt` no agregado, ver README seção 6.2) e persiste o
    * resultado através de `update`, nunca de `delete`.
+   *
+   * Vale a mesma garantia transacional de outbox documentada em
+   * `create`: qualquer `order.domainEvents` pendente (ex.: emitido por
+   * `order.cancel()`) deve ser persistido na mesma transação que grava
+   * a mudança de estado do agregado.
    */
   abstract update(order: Order): Promise<void>;
 

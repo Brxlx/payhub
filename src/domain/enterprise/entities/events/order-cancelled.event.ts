@@ -1,3 +1,4 @@
+import { ORDER_ROUTING_KEYS } from '@/core/consts/messaging.consts';
 import { ID } from '@/core/entities/id';
 import { DomainEvent } from '@/domain/application/shared/events/domain-event';
 
@@ -16,6 +17,7 @@ import { OrderStatusValue } from '../value-objects/order-status.vo';
  */
 export class OrderCancelledEvent implements DomainEvent {
   public ocurredAt: Date;
+  public eventName = ORDER_ROUTING_KEYS.CANCELLED;
   public orderId: ID;
   public customerId: ID;
   public cancelledFrom: OrderStatusValue;
@@ -29,5 +31,13 @@ export class OrderCancelledEvent implements DomainEvent {
 
   getAggregateId(): ID {
     return this.orderId;
+  }
+
+  toPayload(): Record<string, unknown> {
+    return {
+      orderId: this.orderId.toValue(),
+      customerId: this.customerId.toValue(),
+      cancelledFrom: this.cancelledFrom,
+    };
   }
 }

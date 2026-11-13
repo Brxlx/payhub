@@ -60,6 +60,7 @@ export class DrizzleOrdersRepository implements OrdersRepository {
         .orderBy(desc(orders.createdAt))
         .limit(itemsPerPage)
         .offset(offset),
+
       this.drizzle.db.select({ total: count() }).from(orders).where(isNull(orders.deletedAt)),
     ]);
 
@@ -75,6 +76,7 @@ export class DrizzleOrdersRepository implements OrdersRepository {
       .where(inArray(orderItems.orderId, orderIds));
 
     const itemsByOrderId = new Map<string, typeof itemRows>();
+
     for (const item of itemRows) {
       const existing = itemsByOrderId.get(item.orderId) ?? [];
       existing.push(item);

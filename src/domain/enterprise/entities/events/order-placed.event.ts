@@ -1,3 +1,4 @@
+import { ORDER_ROUTING_KEYS } from '@/core/consts/messaging.consts';
 import { ID } from '@/core/entities/id';
 import { DomainEvent } from '@/domain/application/shared/events/domain-event';
 
@@ -11,6 +12,7 @@ import { Money } from '../value-objects/money.vo';
  */
 export class OrderPlacedEvent implements DomainEvent {
   public ocurredAt: Date;
+  public eventName = ORDER_ROUTING_KEYS.PLACED;
   public orderId: ID;
   public customerId: ID;
   public total: Money;
@@ -24,5 +26,13 @@ export class OrderPlacedEvent implements DomainEvent {
 
   getAggregateId(): ID {
     return this.orderId;
+  }
+
+  toPayload(): Record<string, unknown> {
+    return {
+      orderId: this.orderId.toValue(),
+      customerId: this.customerId.toValue(),
+      total: this.total.toJSON(),
+    };
   }
 }
