@@ -1,5 +1,9 @@
+import { ORDERS_EXCHANGE } from '@/core/consts/messaging.consts';
 import { ID } from '@/core/entities/id';
 import { Either, left, right } from '@/core/types/either';
+import { publishDomainEvents } from '@/domain/application/shared/events/publish-domain-events';
+import { Logger } from '@/domain/application/shared/gateways/logger';
+import { Queue } from '@/domain/application/shared/gateways/queue';
 import { OrderError } from '@/domain/enterprise/entities/errors/order.error';
 import { OrderItemError } from '@/domain/enterprise/entities/errors/order-item.error';
 import { Order } from '@/domain/enterprise/entities/order';
@@ -28,7 +32,11 @@ type MakeOrderUseCaseResponse = Either<OrderError, { order: Order }>;
  * — não existe um estado "rascunho salvo" intermediário na API.
  */
 export class MakeOrderUseCase {
-  constructor(private readonly ordersRepository: OrdersRepository) {}
+  constructor(
+    private readonly ordersRepository: OrdersRepository,
+    private readonly queue: Queue,
+    private readonly logger: Logger,
+  ) {}
 
   async execute({ customerId, items }: MakeOrderUseCaseRequest): Promise<MakeOrderUseCaseResponse> {
     const customerIdOrError = this.validateCustomerId(customerId);
@@ -108,18 +116,20 @@ export class MakeOrderUseCase {
     }
   }
 
+  /**
+   * Captura os eventos pendentes ANTES de persistir: `ordersRepository.create`
+   * despacha `order.domainEvents` via `DomainEvents` internamente, o que
+   * limpa o array como efeito colateral (ver
+   * `prds/publish-order-domain-events.md`, seção "Armadilha de
+   * ordenação"). Só publica na `Queue` depois que a persistência resolver
+   * sem lançar — nunca publica um evento de um pedido que não foi de fato
+   * salvo.
+   */
   private async persistOrder(order: Order): Promise<void> {
+    const pendingEvents = [...order.domainEvents];
+
     await this.ordersRepository.create(order);
 
-    // TODO: a implementação concreta de `OrdersRepository.create` (Drizzle)
-    // deve, na mesma transação, persistir `orders` + `order_items` e uma
-    // linha na tabela de outbox (ver README seção 8.3), e então chamar
-    // `DomainEvents.dispatchEventsForAggregate(order.id)` — isso dispara o
-    // `OrderPlacedEvent` já presente em `order.domainEvents`.
-    // TODO: registrar (em algum setup/bootstrap da aplicação, via
-    // `DomainEvents.register(...)`) um handler para `OrderPlacedEvent` que
-    // publique no RabbitMQ (exchange `orders.events`, routing key
-    // `order.placed`) assim que o módulo de mensageria existir (README
-    // seção 8).
+    await publishDomainEvents(this.queue, this.logger, ORDERS_EXCHANGE, pendingEvents);
   }
 }

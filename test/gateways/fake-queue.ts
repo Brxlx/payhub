@@ -63,7 +63,7 @@ export class FakeQueue implements Queue {
     const handler = this.consumers.get(queueName);
 
     if (!handler) {
-      throw new Error(`FakeQueue: no consumer registered for queue "${queueName}"`);
+      throw new QueueError(`FakeQueue: no consumer registered for queue "${queueName}"`);
     }
 
     await handler(message);

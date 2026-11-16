@@ -1,5 +1,9 @@
+import { ORDERS_EXCHANGE } from '@/core/consts/messaging.consts';
 import { ID } from '@/core/entities/id';
 import { Either, left, right } from '@/core/types/either';
+import { publishDomainEvents } from '@/domain/application/shared/events/publish-domain-events';
+import { Logger } from '@/domain/application/shared/gateways/logger';
+import { Queue } from '@/domain/application/shared/gateways/queue';
 import { OrderError } from '@/domain/enterprise/entities/errors/order.error';
 import { Order } from '@/domain/enterprise/entities/order';
 import { OrderStatusError } from '@/domain/enterprise/entities/value-objects/errors/order-status.error';
@@ -27,7 +31,11 @@ type CancelOrderUseCaseResponse = Either<OrderNotFoundError | OrderCannotBeCance
  * inalcançável na prática para qualquer pedido real.
  */
 export class CancelOrderUseCase {
-  constructor(private readonly orderRepository: OrdersRepository) {}
+  constructor(
+    private readonly orderRepository: OrdersRepository,
+    private readonly queue: Queue,
+    private readonly logger: Logger,
+  ) {}
 
   async execute({ orderId }: CancelOrderUseCaseRequest): Promise<CancelOrderUseCaseResponse> {
     const orderIdVo = new ID(orderId);
@@ -56,7 +64,15 @@ export class CancelOrderUseCase {
       throw error;
     }
 
+    // Captura antes de `update()`: o repositório limpa `order.domainEvents`
+    // como efeito colateral do despacho síncrono interno (ver
+    // `prds/publish-order-domain-events.md`, seção "Armadilha de
+    // ordenação").
+    const pendingEvents = [...order.domainEvents];
+
     await this.orderRepository.update(order);
+
+    await publishDomainEvents(this.queue, this.logger, ORDERS_EXCHANGE, pendingEvents);
 
     return right({ order });
   }

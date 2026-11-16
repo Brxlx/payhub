@@ -1,5 +1,8 @@
+import { FakeLogger } from 'test/gateways/fake-logger';
+import { FakeQueue } from 'test/gateways/fake-queue';
 import { InMemoryOrdersRepository } from 'test/repositories/in-memory-orders-repository';
 
+import { ORDER_ROUTING_KEYS, ORDERS_EXCHANGE } from '@/core/consts/messaging.consts';
 import { ID } from '@/core/entities/id';
 import { DomainEvents } from '@/domain/application/shared/events/domain-events';
 import { OrderPlacedEvent } from '@/domain/enterprise/entities/events/order-placed.event';
@@ -9,11 +12,15 @@ import { MakeOrderUseCase } from './make-order-use-case';
 
 describe('[MakeOrderUseCase]', () => {
   let inMemoryOrdersRepository: InMemoryOrdersRepository;
+  let fakeQueue: FakeQueue;
+  let fakeLogger: FakeLogger;
   let sut: MakeOrderUseCase;
 
   beforeEach(() => {
     inMemoryOrdersRepository = new InMemoryOrdersRepository();
-    sut = new MakeOrderUseCase(inMemoryOrdersRepository);
+    fakeQueue = new FakeQueue();
+    fakeLogger = new FakeLogger();
+    sut = new MakeOrderUseCase(inMemoryOrdersRepository, fakeQueue, fakeLogger);
 
     // DomainEvents mantém estado estático global (handlers e agregados
     // marcados) — limpa entre testes para um não vazar efeito no outro.
@@ -107,5 +114,55 @@ describe('[MakeOrderUseCase]', () => {
       // o agregado limpa seus eventos assim que o DomainEvents os despacha
       expect(result.value.order.domainEvents).toHaveLength(0);
     }
+  });
+
+  it('should publish the OrderPlacedEvent to the orders exchange', async () => {
+    const result = await sut.execute({
+      customerId: new ID().toValue(),
+      items: [{ productId: new ID().toValue(), quantity: 1, unitPriceInCents: 1000 }],
+    });
+
+    expect(result.isRight()).toBeTruthy();
+    assert(result.isRight());
+
+    expect(fakeQueue.publishedMessages).toHaveLength(1);
+    expect(fakeQueue.publishedMessages[0]).toMatchObject({
+      exchange: ORDERS_EXCHANGE,
+      message: {
+        routingKey: ORDER_ROUTING_KEYS.PLACED,
+        payload: {
+          orderId: result.value.order.id.toValue(),
+          customerId: result.value.order.customerId.toValue(),
+        },
+      },
+    });
+  });
+
+  it('should still return right({ order }) even when publishing fails', async () => {
+    fakeQueue.setPublishFailure();
+
+    const result = await sut.execute({
+      customerId: new ID().toValue(),
+      items: [{ productId: new ID().toValue(), quantity: 1, unitPriceInCents: 1000 }],
+    });
+
+    expect(result.isRight()).toBeTruthy();
+    expect(fakeLogger.errors).toHaveLength(1);
+  });
+
+  it('should capture pending events before the repository clears them so publish still happens', async () => {
+    const result = await sut.execute({
+      customerId: new ID().toValue(),
+      items: [{ productId: new ID().toValue(), quantity: 1, unitPriceInCents: 1000 }],
+    });
+
+    expect(result.isRight()).toBeTruthy();
+    assert(result.isRight());
+
+    // Regressão: `InMemoryOrdersRepository.create` limpa `order.domainEvents`
+    // internamente, mas `publishDomainEvents` ainda deve ter publicado o
+    // evento, pois o use case o capturou antes dessa chamada.
+    expect(result.value.order.domainEvents).toHaveLength(0);
+    expect(fakeQueue.publishedMessages).toHaveLength(1);
   });
 });
