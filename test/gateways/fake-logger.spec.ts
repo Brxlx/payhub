@@ -10,7 +10,9 @@ describe('[FakeLogger]', () => {
   it('should record an error call with its message and meta', () => {
     fakeLogger.error('failed to publish', { eventName: 'order.placed' });
 
-    expect(fakeLogger.errors).toEqual([{ message: 'failed to publish', meta: { eventName: 'order.placed' } }]);
+    expect(fakeLogger.errors).toEqual([
+      { message: 'failed to publish', meta: { eventName: 'order.placed' } },
+    ]);
   });
 
   it('should record an error call without meta', () => {

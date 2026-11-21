@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 
 import { DatabaseModule } from '@/infra/database/database.module';
+import { MessagingModule } from '@/infra/messaging/messaging.module';
 
 import { CancelOrderController } from './cancel-order.controller';
 import { CancelOrderService } from './cancel-order.service';
@@ -14,7 +15,7 @@ import { MakeOrderController } from './make-order.controller';
 import { MakeOrderService } from './make-order.service';
 
 @Module({
-  imports: [DatabaseModule],
+  imports: [DatabaseModule, MessagingModule],
   controllers: [
     MakeOrderController,
     FindOrderByIdController,

@@ -43,7 +43,7 @@ export default tseslint.config(
           'ignoreComments': true,
           'ignoreTrailingComments': true,
           'ignoreUrls': true,
-          'ignorePattern': '^import\\s.+$'
+          'ignorePattern': '^import\\s.+$(|.*\\.(spec|test)\\.ts$)'
         }],
       '@typescript-eslint/interface-name-prefix': 'off',
       '@typescript-eslint/explicit-function-return-type': 'off',
@@ -95,4 +95,10 @@ export default tseslint.config(
       ],
     },
   },
+  {
+    files: ['**/*.spec.ts'],
+    rules: {
+      'max-len': 'off'
+    }
+  }
 );
